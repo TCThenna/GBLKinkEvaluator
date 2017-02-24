@@ -480,7 +480,7 @@ void fitter(Int_t runnumber, Double_t ebeam)
   std::cout << "clone histos";
   // Load file
   //
-  
+
   h_m26[0] = (TH1D*) (tfile->Get("Fitter00/GBL/gblrx0"))->Clone();
   h_m26[1] = (TH1D*) (tfile->Get("Fitter00/GBL/gblry0"))->Clone();
   h_m26[2] = (TH1D*) (tfile->Get("Fitter01/GBL/gblrx1"))->Clone();
@@ -1308,7 +1308,7 @@ void getpointing(Int_t runnumber, float sigm26)
   //sigm26 = 3.42;
   //Double_t sigm26_e = 0.12;
   Double_t sigm26_e = 0.035;
-  
+
 
   // these lines for extrapolation to telescope center:
 
@@ -1798,13 +1798,13 @@ int main()
     double tmp; 
     for(int i = 0; i < 7; i++){
       //if(i != 3) {
-	//tmp = tscope->GetWidthGBL(i, 1); // at DUT
-	//std::cout << " biased width at " << i << " = " << tmp << std::endl;
+      //tmp = tscope->GetWidthGBL(i, 1); // at DUT
+      //std::cout << " biased width at " << i << " = " << tmp << std::endl;
       //} else {
-	//tmp = tscope->GetPointingResGBL(i, 0); // at DUT
-	//std::cout << " unbiased track res at plane " << i << " = " << tmp << std::endl;
-	tmp = tscope->GetPointingResGBL(i, 1); // at DUT
-	std::cout << " biased track res at plane " << i << " = " << tmp << std::endl;
+      //tmp = tscope->GetPointingResGBL(i, 0); // at DUT
+      //std::cout << " unbiased track res at plane " << i << " = " << tmp << std::endl;
+      tmp = tscope->GetPointingResGBL(i, 1); // at DUT
+      std::cout << " biased track res at plane " << i << " = " << tmp << std::endl;
       //}
     }
 
@@ -2870,7 +2870,7 @@ int main()
   if (runmode == 12)
   {
     std::cout << " This checks the mean number of fired pixel in a cluster (a.k.a. cluster charge in case of digital chip)." <<
-     "\n - Attention! You can choose if average over ALL clusters or just those that make it into a track! Default is those from tracks" <<  std::endl;
+      "\n - Attention! You can choose if average over ALL clusters or just those that make it into a track! Default is those from tracks" <<  std::endl;
 
     whichfitter = "GBLfitter-CS-CSdepSigmaInt";
 
@@ -3794,11 +3794,11 @@ int main()
 	submask = convert.str();
 	if (i == 0)
 	  submask = "";
-	
+
 	fitter( run_4_150[j], 4.4 );
 	threshresult4[j][i] = m26_resolution*1000.0;
 	thresherror4[j][i] = m26_res_error*1000.0;
-	
+
       }
     }
 
@@ -3824,219 +3824,219 @@ int main()
 
 
   // Effi is now done in runmode 17
-  
 
 
 
-// FIXME update
-// plot clustersize
-if(runmode == 6)
-{
 
-  // Results go in here
-  Double_t threshcluster2[threshcount];
-  Double_t threshcluster3[threshcount];
-  Double_t threshcluster4[threshcount];
-  Double_t threshcluster5[threshcount];
-  Double_t threshclusterthreshcouunt0[threshcount];
-  Double_t threshcluster2_error[threshcount];
-  Double_t threshcluster3_error[threshcount];
-  Double_t threshcluster4_error[threshcount];
-  Double_t threshcluster5_error[threshcount];
-  Double_t threshcluster120[threshcount];
-  Double_t threshcluster120_error[threshcount];
-  Double_t thin_threshcluster2[threshcount];
-  Double_t thin_threshcluster3[threshcount];
-  Double_t thin_threshcluster5[threshcount];
-  Double_t thin_threshcluster2_error[threshcount];
-  Double_t thin_threshcluster3_error[threshcount];
-  Double_t thin_threshcluster5_error[threshcount];
-  Double_t x[threshcount];
-  Double_t xerror[threshcount] = {0.0};
-
-  std::cout << " " << std::endl;
-  std::cout << "Mode 6" << std::endl;
-  std::cout << " " << std::endl;
-  std::cout << "Running over all runs - cluster size" << std::endl;
-  std::cout << " " << std::endl;
-  std::cout << "Wide Geometry" << std::endl;
-  std::cout << " " << std::endl;
-
-  telescopebuild = "AnaTel_wide.geom";
-  planedistance = 150;
-  for(int j=0;j<nplanes;j++)
-    posx[j] = 150.0*j;
-
-  for(int i=0;i<run_2_150.size();i++)
+  // FIXME update
+  // plot clustersize
+  if(runmode == 6)
   {
-    getclusize( run_2_150[i] );
-    x[i] = i+3;
-    threshcluster2[i] = avgclustersize;
-    threshcluster2_error[i] = avgclustersize_error;
+
+    // Results go in here
+    Double_t threshcluster2[threshcount];
+    Double_t threshcluster3[threshcount];
+    Double_t threshcluster4[threshcount];
+    Double_t threshcluster5[threshcount];
+    Double_t threshclusterthreshcouunt0[threshcount];
+    Double_t threshcluster2_error[threshcount];
+    Double_t threshcluster3_error[threshcount];
+    Double_t threshcluster4_error[threshcount];
+    Double_t threshcluster5_error[threshcount];
+    Double_t threshcluster120[threshcount];
+    Double_t threshcluster120_error[threshcount];
+    Double_t thin_threshcluster2[threshcount];
+    Double_t thin_threshcluster3[threshcount];
+    Double_t thin_threshcluster5[threshcount];
+    Double_t thin_threshcluster2_error[threshcount];
+    Double_t thin_threshcluster3_error[threshcount];
+    Double_t thin_threshcluster5_error[threshcount];
+    Double_t x[threshcount];
+    Double_t xerror[threshcount] = {0.0};
+
+    std::cout << " " << std::endl;
+    std::cout << "Mode 6" << std::endl;
+    std::cout << " " << std::endl;
+    std::cout << "Running over all runs - cluster size" << std::endl;
+    std::cout << " " << std::endl;
+    std::cout << "Wide Geometry" << std::endl;
+    std::cout << " " << std::endl;
+
+    telescopebuild = "AnaTel_wide.geom";
+    planedistance = 150;
+    for(int j=0;j<nplanes;j++)
+      posx[j] = 150.0*j;
+
+    for(int i=0;i<run_2_150.size();i++)
+    {
+      getclusize( run_2_150[i] );
+      x[i] = i+3;
+      threshcluster2[i] = avgclustersize;
+      threshcluster2_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run_3_150.size();i++)
+    {
+      getclusize( run_3_150[i] );
+      x[i] = i+3;
+      threshcluster3[i] = avgclustersize;
+      threshcluster3_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run_4_150.size();i++)
+    {
+      getclusize( run_4_150[i] );
+      x[i] = i+3;
+      threshcluster4[i] = avgclustersize;
+      threshcluster4_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run_5_150.size();i++)
+    {
+      getclusize( run_5_150[i] );
+      x[i] = i+3;
+      threshcluster5[i] = avgclustersize;
+      threshcluster5_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run120.size();i++)
+    {
+      getclusize( run120[i] );
+      x[i] = i+3;
+      threshcluster120[i] = avgclustersize;
+      threshcluster120_error[i] = avgclustersize_error;
+    }
+
+    std::cout << " " << std::endl;
+    std::cout << "Thin Geometry" << std::endl;
+    std::cout << " " << std::endl;
+
+    telescopebuild = "AnaTel_narrow.geom";
+    planedistance = 20;
+
+    for(int j=0;j<nplanes;j++)
+      posx[j] = 20.0*j;
+
+    for(int i=0;i<run_2_20.size();i++)
+    {
+      getclusize( run_2_20[i] );
+      x[i] = i+3;
+      thin_threshcluster2[i] = avgclustersize;
+      thin_threshcluster2_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run_3_20.size();i++)
+    {
+      getclusize( run_3_20[i] );
+      x[i] = i+3;
+      thin_threshcluster3[i] = avgclustersize;
+      thin_threshcluster3_error[i] = avgclustersize_error;
+    }
+
+    for(int i=0;i<run_5_20.size();i++)
+    {
+      getclusize( run_5_20[i] );
+      x[i] = i+3;
+      thin_threshcluster5[i] = avgclustersize;
+      thin_threshcluster5_error[i] = avgclustersize_error;
+    }
+
+    // Create graphs with the information
+    TGraphErrors *gr2n = new TGraphErrors(10,x,threshcluster2,xerror,threshcluster2_error);
+    TGraphErrors *gr3n = new TGraphErrors(10,x,threshcluster3,xerror,threshcluster3_error);
+    TGraphErrors *gr4n = new TGraphErrors(10,x,threshcluster4,xerror,threshcluster4_error);
+    TGraphErrors *gr5n = new TGraphErrors(10,x,threshcluster5,xerror,threshcluster5_error);
+    TGraphErrors *gr120n = new TGraphErrors(10,x,threshcluster120,xerror,threshcluster120_error);
+
+    TGraphErrors *gr2nth = new TGraphErrors(10,x,thin_threshcluster2,xerror,thin_threshcluster2_error);
+    TGraphErrors *gr3nth = new TGraphErrors(10,x,thin_threshcluster3,xerror,thin_threshcluster3_error);
+    TGraphErrors *gr5nth = new TGraphErrors(10,x,thin_threshcluster5,xerror,thin_threshcluster5_error);
+
+    // Let's plot this
+    TH1D *h_axis = new TH1D("th_axis","th_axis",1, 2.0, 13.0);
+    TCanvas *threshold = new TCanvas("threshold","threshold",10,10,800,600);
+    gStyle->SetPadBorderMode(0);
+    gStyle->SetOptStat(0);
+    threshold->SetFillColor(0);
+    threshold->Divide(1,1);
+    threshold->cd(1);
+    gStyle->SetErrorX(0);
+    gPad->SetLogx(0);
+    gPad->SetLogy(0);
+
+    // Set apperance
+    gr2n->SetMarkerStyle(22);
+    gr2n->SetMarkerColor(kRed);
+    gr2n->SetMarkerSize(2);
+    gr3n->SetMarkerStyle(22);
+    gr3n->SetMarkerColor(kBlue);
+    gr3n->SetMarkerSize(2);
+    gr4n->SetMarkerStyle(22);
+    gr4n->SetMarkerColor(kGreen);
+    gr4n->SetMarkerSize(2);
+    gr5n->SetMarkerStyle(22);
+    gr5n->SetMarkerColor(kBlack);
+    gr5n->SetMarkerSize(2);
+    gr120n->SetMarkerStyle(22);
+    gr120n->SetMarkerColor(kOrange);
+    gr120n->SetMarkerSize(2);
+
+    gr2nth->SetMarkerStyle(34);
+    gr2nth->SetMarkerColor(kRed);
+    gr2nth->SetMarkerSize(2);
+    gr3nth->SetMarkerStyle(34);
+    gr3nth->SetMarkerColor(kBlue);
+    gr3nth->SetMarkerSize(2);
+    gr5nth->SetMarkerStyle(34);
+    gr5nth->SetMarkerColor(kBlack);
+    gr5nth->SetMarkerSize(2);
+
+    //histo_cfg(h_axis, "Threshold (s/n)","N","");
+    h_axis->SetMinimum(0.0);
+    h_axis->SetMaximum(3.0);
+    h_axis->Draw("hist");
+
+    gr2n->Draw("P");
+    gr3n->Draw("P");
+    gr4n->Draw("P");
+    gr5n->Draw("P");
+    gr120n->Draw("P");
+
+    gr2nth->Draw("P");
+    gr3nth->Draw("P");
+    gr5nth->Draw("P");
+
+    // The legend
+    TLegend *leg = new TLegend(0.59,0.55,0.90,0.85);
+    leg->SetBorderSize(0);
+    leg->SetFillColor(0);
+    leg->SetFillStyle(0);
+    leg->SetHeader("Performance:");
+
+    leg->AddEntry(gr2n,"2 GeV avg. cluster size","p");
+    leg->AddEntry(gr3n,"3 GeV avg. cluster size","p");
+    leg->AddEntry(gr4n,"4.4 GeV avg. cluster size","p");
+    leg->AddEntry(gr5n,"5 GeV avg. cluster size","p");
+    leg->AddEntry(gr120n,"120 GeV avg. cluster size","p");
+
+    leg->AddEntry(gr2nth,"2 GeV avg. cluster size 20mm","p");
+    leg->AddEntry(gr3nth,"3 GeV avg. cluster size 20mm","p");
+    leg->AddEntry(gr5nth,"5 GeV avg. cluster size 20mm","p");
+
+    leg->Draw();
+
+    // Output
+    threshold->Print("pics/clusize.eps");
+    _outputFile->cd();
+    threshold->Write();
+    threshold->Close();
+
   }
 
-  for(int i=0;i<run_3_150.size();i++)
-  {
-    getclusize( run_3_150[i] );
-    x[i] = i+3;
-    threshcluster3[i] = avgclustersize;
-    threshcluster3_error[i] = avgclustersize_error;
-  }
 
-  for(int i=0;i<run_4_150.size();i++)
-  {
-    getclusize( run_4_150[i] );
-    x[i] = i+3;
-    threshcluster4[i] = avgclustersize;
-    threshcluster4_error[i] = avgclustersize_error;
-  }
+  _outputFile->Close();
 
-  for(int i=0;i<run_5_150.size();i++)
-  {
-    getclusize( run_5_150[i] );
-    x[i] = i+3;
-    threshcluster5[i] = avgclustersize;
-    threshcluster5_error[i] = avgclustersize_error;
-  }
-
-  for(int i=0;i<run120.size();i++)
-  {
-    getclusize( run120[i] );
-    x[i] = i+3;
-    threshcluster120[i] = avgclustersize;
-    threshcluster120_error[i] = avgclustersize_error;
-  }
-
-  std::cout << " " << std::endl;
-  std::cout << "Thin Geometry" << std::endl;
-  std::cout << " " << std::endl;
-
-  telescopebuild = "AnaTel_narrow.geom";
-  planedistance = 20;
-
-  for(int j=0;j<nplanes;j++)
-    posx[j] = 20.0*j;
-
-  for(int i=0;i<run_2_20.size();i++)
-  {
-    getclusize( run_2_20[i] );
-    x[i] = i+3;
-    thin_threshcluster2[i] = avgclustersize;
-    thin_threshcluster2_error[i] = avgclustersize_error;
-  }
-
-  for(int i=0;i<run_3_20.size();i++)
-  {
-    getclusize( run_3_20[i] );
-    x[i] = i+3;
-    thin_threshcluster3[i] = avgclustersize;
-    thin_threshcluster3_error[i] = avgclustersize_error;
-  }
-
-  for(int i=0;i<run_5_20.size();i++)
-  {
-    getclusize( run_5_20[i] );
-    x[i] = i+3;
-    thin_threshcluster5[i] = avgclustersize;
-    thin_threshcluster5_error[i] = avgclustersize_error;
-  }
-
-  // Create graphs with the information
-  TGraphErrors *gr2n = new TGraphErrors(10,x,threshcluster2,xerror,threshcluster2_error);
-  TGraphErrors *gr3n = new TGraphErrors(10,x,threshcluster3,xerror,threshcluster3_error);
-  TGraphErrors *gr4n = new TGraphErrors(10,x,threshcluster4,xerror,threshcluster4_error);
-  TGraphErrors *gr5n = new TGraphErrors(10,x,threshcluster5,xerror,threshcluster5_error);
-  TGraphErrors *gr120n = new TGraphErrors(10,x,threshcluster120,xerror,threshcluster120_error);
-
-  TGraphErrors *gr2nth = new TGraphErrors(10,x,thin_threshcluster2,xerror,thin_threshcluster2_error);
-  TGraphErrors *gr3nth = new TGraphErrors(10,x,thin_threshcluster3,xerror,thin_threshcluster3_error);
-  TGraphErrors *gr5nth = new TGraphErrors(10,x,thin_threshcluster5,xerror,thin_threshcluster5_error);
-
-  // Let's plot this
-  TH1D *h_axis = new TH1D("th_axis","th_axis",1, 2.0, 13.0);
-  TCanvas *threshold = new TCanvas("threshold","threshold",10,10,800,600);
-  gStyle->SetPadBorderMode(0);
-  gStyle->SetOptStat(0);
-  threshold->SetFillColor(0);
-  threshold->Divide(1,1);
-  threshold->cd(1);
-  gStyle->SetErrorX(0);
-  gPad->SetLogx(0);
-  gPad->SetLogy(0);
-
-  // Set apperance
-  gr2n->SetMarkerStyle(22);
-  gr2n->SetMarkerColor(kRed);
-  gr2n->SetMarkerSize(2);
-  gr3n->SetMarkerStyle(22);
-  gr3n->SetMarkerColor(kBlue);
-  gr3n->SetMarkerSize(2);
-  gr4n->SetMarkerStyle(22);
-  gr4n->SetMarkerColor(kGreen);
-  gr4n->SetMarkerSize(2);
-  gr5n->SetMarkerStyle(22);
-  gr5n->SetMarkerColor(kBlack);
-  gr5n->SetMarkerSize(2);
-  gr120n->SetMarkerStyle(22);
-  gr120n->SetMarkerColor(kOrange);
-  gr120n->SetMarkerSize(2);
-
-  gr2nth->SetMarkerStyle(34);
-  gr2nth->SetMarkerColor(kRed);
-  gr2nth->SetMarkerSize(2);
-  gr3nth->SetMarkerStyle(34);
-  gr3nth->SetMarkerColor(kBlue);
-  gr3nth->SetMarkerSize(2);
-  gr5nth->SetMarkerStyle(34);
-  gr5nth->SetMarkerColor(kBlack);
-  gr5nth->SetMarkerSize(2);
-
-  //histo_cfg(h_axis, "Threshold (s/n)","N","");
-  h_axis->SetMinimum(0.0);
-  h_axis->SetMaximum(3.0);
-  h_axis->Draw("hist");
-
-  gr2n->Draw("P");
-  gr3n->Draw("P");
-  gr4n->Draw("P");
-  gr5n->Draw("P");
-  gr120n->Draw("P");
-
-  gr2nth->Draw("P");
-  gr3nth->Draw("P");
-  gr5nth->Draw("P");
-
-  // The legend
-  TLegend *leg = new TLegend(0.59,0.55,0.90,0.85);
-  leg->SetBorderSize(0);
-  leg->SetFillColor(0);
-  leg->SetFillStyle(0);
-  leg->SetHeader("Performance:");
-
-  leg->AddEntry(gr2n,"2 GeV avg. cluster size","p");
-  leg->AddEntry(gr3n,"3 GeV avg. cluster size","p");
-  leg->AddEntry(gr4n,"4.4 GeV avg. cluster size","p");
-  leg->AddEntry(gr5n,"5 GeV avg. cluster size","p");
-  leg->AddEntry(gr120n,"120 GeV avg. cluster size","p");
-
-  leg->AddEntry(gr2nth,"2 GeV avg. cluster size 20mm","p");
-  leg->AddEntry(gr3nth,"3 GeV avg. cluster size 20mm","p");
-  leg->AddEntry(gr5nth,"5 GeV avg. cluster size 20mm","p");
-
-  leg->Draw();
-
-  // Output
-  threshold->Print("pics/clusize.eps");
-  _outputFile->cd();
-  threshold->Write();
-  threshold->Close();
-
-}
-
-
-_outputFile->Close();
-
-// And we're done
-std::cout << "\nDone.\n" << std::endl;
+  // And we're done
+  std::cout << "\nDone.\n" << std::endl;
 
 }
