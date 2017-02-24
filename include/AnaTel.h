@@ -87,10 +87,8 @@ class AnaTel {
     void GetPlane(Int_t Ipl, Double_t  * Position, Double_t  * Thickness,  
 	Double_t  * X0, Double_t  * Resolution);
 
-    Double_t GetPointingRes(Int_t Ipl, Bool_t UseInFit);
     Double_t GetPointingResGBL(Int_t Ipl, Bool_t UseInFit);
 
-    Double_t GetWidth(Int_t Ipl, Bool_t UseInFit);
     Double_t GetWidthGBL(Int_t Ipl, Bool_t UseInFit);
 
     Double_t GetkResError(Int_t Ipl, Bool_t UseInFit);
