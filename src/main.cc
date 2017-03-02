@@ -56,13 +56,12 @@
 #include "TLegendEntry.h"
 
 std::string inputDir20;
-std::string inputDir150;
 std::string inputFile;
 TFile* _outputFile;
 ofstream pulls20;
 ofstream pulls150;
 
-std::string whichfitter = "GBLfitter-fixedAlign-alignGBL_wAir_thickSensIT3";
+std::string whichfitter = "GBLKinkEstimator_kappa100";
 
 TH1D *delta0 = new TH1D("temp0","dXY 0",1000, -1, 5);
 TH1D *delta1 = new TH1D("temp1","dXY 1",1000, -1, 5);
@@ -78,8 +77,9 @@ TH1D *delta10 = new TH1D("temp10","dY 1 and 4",1000, -1, 5);
 TH1D *delta11 = new TH1D("temp11","dY 2 and 3",1000, -1, 5);
 
 
-const Int_t threshcount = 10;
-const Int_t planescount = 12;
+const Int_t alucount = 8;
+double aluthick[alucount] = {0.0, 0.013, 0.025, 0.05, 0.1, 0.2, 1.0, 10.0};
+const Int_t planescount = 12; // planes *2
 
 TGraphErrors* g_mean[planescount]; // for 2*6 planes
 TGraphErrors* g_sigma[planescount];
@@ -150,7 +150,6 @@ Bool_t plot_residuals = false ;
 // Verbosity
 Bool_t verbose0 = false;
 Bool_t verbose1 = false;
-Bool_t verbose = true;
 
 // Biased or unbiased
 bool IsBiased = true;
@@ -187,9 +186,6 @@ Int_t global_thresh = 0;
 
 // color array
 Int_t color[10] = {1,2,3,4,6,7,8,9,11,12};
-
-// Cut in clustersize, set to 0 for all
-#define clusterlimit 0
 
 // What subsensor information do we want? Format: A-D for submatrix, 1-7 for clustersize, empty for all.
 // e.g.: submask = "A1" or submask = "3" or submask = "C"
@@ -240,14 +236,15 @@ void DoConstFit(TH1 *histo, double &mean, double &sigma, double low, double high
 
 void filehelper(std::string &help, Int_t RN)
 {
-  if(RN < 113 || RN > 700) help = inputDir150 + inputFile;
-  else help = inputDir20 + inputFile;
+  help = inputDir20 + inputFile;
   //std::cout << "help: " << help << ", runnumber = " << RN << std::endl;
   //std::cout << "run number = " << RN << std::endl;
   //TString filename(help.c_str());
   if (RN <= 999)
     help+="0";
   if (RN <= 99)
+    help+="0";
+  if (RN <= 9)
     help+="0";
   help+= std::to_string(RN);
   help+="-";
@@ -440,13 +437,6 @@ void fitter(Int_t runnumber, Double_t ebeam)
   CanvasSetter(canv_pulls);
   canv_pulls->Divide(2,6);
 
-  TCanvas *canv_unb_pulls;
-  canv_name = "m26fitter_unb_pulls_";
-  canv_name += std::to_string(runnumber);
-  canv_unb_pulls = new TCanvas(canv_name.c_str(),canv_name.c_str(),900,10,600,800); 
-  CanvasSetter(canv_unb_pulls);
-  canv_unb_pulls->Divide(2,6);
-
   TCanvas *canv_kink_pulls;
   canv_name = "m26fitter_kink_pulls_";
   canv_name += std::to_string(runnumber);
@@ -454,58 +444,34 @@ void fitter(Int_t runnumber, Double_t ebeam)
   CanvasSetter(canv_kink_pulls);
   canv_kink_pulls->Divide(2,4);
 
-  TCanvas *canv_kink_unb_pulls;
-  canv_name = "m26fitter_kink_unb_pulls_";
-  canv_name += std::to_string(runnumber);
-  canv_kink_unb_pulls = new TCanvas(canv_name.c_str(),canv_name.c_str(),900,10,600,800); 
-  CanvasSetter(canv_kink_unb_pulls);
-  canv_kink_unb_pulls->Divide(2,4);
-
 
 
 
 
   // histos
-  TH1D *h_m26[planescount];
-  TH1D *h_m26_biased[planescount];
+  TH1D *h_residual_biased[planescount];
   TH1D *h_pull_biased[planescount];
-  TH1D *h_pull_unbiased[planescount];
   TH1D *h_kink_pull[8];
-  TH1D *h_kink_unb_pull[8];
   tfile->cd();
 
-  // If the clustersize is limited, put clustersize 1 into the original histogram
-  if(clusterlimit >0) submask="1";
 
   std::cout << "clone histos";
   // Load file
   //
 
-  h_m26[0] = (TH1D*) (tfile->Get("Fitter00/GBL/gblrx0"))->Clone();
-  h_m26[1] = (TH1D*) (tfile->Get("Fitter00/GBL/gblry0"))->Clone();
-  h_m26[2] = (TH1D*) (tfile->Get("Fitter01/GBL/gblrx1"))->Clone();
-  h_m26[3] = (TH1D*) (tfile->Get("Fitter01/GBL/gblry1"))->Clone();
-  h_m26[4] = (TH1D*) (tfile->Get("Fitter02/GBL/gblrx2"))->Clone();
-  h_m26[5] = (TH1D*) (tfile->Get("Fitter02/GBL/gblry2"))->Clone();
-  h_m26[6] = (TH1D*) (tfile->Get("Fitter03/GBL/gblrx3"))->Clone();
-  h_m26[7] = (TH1D*) (tfile->Get("Fitter03/GBL/gblry3"))->Clone();
-  h_m26[8] = (TH1D*) (tfile->Get("Fitter04/GBL/gblrx4"))->Clone();
-  h_m26[9] = (TH1D*) (tfile->Get("Fitter04/GBL/gblry4"))->Clone();
-  h_m26[10] = (TH1D*)(tfile->Get("Fitter05/GBL/gblrx5"))->Clone();
-  h_m26[11] = (TH1D*)(tfile->Get("Fitter05/GBL/gblry5"))->Clone();
 
-  h_m26_biased[0] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx0"))->Clone();
-  h_m26_biased[1] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry0"))->Clone();
-  h_m26_biased[2] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx1"))->Clone();
-  h_m26_biased[3] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry1"))->Clone();
-  h_m26_biased[4] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx2"))->Clone();
-  h_m26_biased[5] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry2"))->Clone();
-  h_m26_biased[6] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx3"))->Clone();
-  h_m26_biased[7] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry3"))->Clone();
-  h_m26_biased[8] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx4"))->Clone();
-  h_m26_biased[9] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry4"))->Clone();
-  h_m26_biased[10] = (TH1D*)(tfile->Get("Fitter06/GBL/gblrx5"))->Clone();
-  h_m26_biased[11] = (TH1D*)(tfile->Get("Fitter06/GBL/gblry5"))->Clone();
+  h_residual_biased[0] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx0"))->Clone();
+  h_residual_biased[1] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry0"))->Clone();
+  h_residual_biased[2] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx1"))->Clone();
+  h_residual_biased[3] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry1"))->Clone();
+  h_residual_biased[4] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx2"))->Clone();
+  h_residual_biased[5] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry2"))->Clone();
+  h_residual_biased[6] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx3"))->Clone();
+  h_residual_biased[7] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry3"))->Clone();
+  h_residual_biased[8] = (TH1D*) (tfile->Get("Fitter06/GBL/gblrx4"))->Clone();
+  h_residual_biased[9] = (TH1D*) (tfile->Get("Fitter06/GBL/gblry4"))->Clone();
+  h_residual_biased[10] = (TH1D*)(tfile->Get("Fitter06/GBL/gblrx5"))->Clone();
+  h_residual_biased[11] = (TH1D*)(tfile->Get("Fitter06/GBL/gblry5"))->Clone();
 
   h_pull_biased[0] = (TH1D*) (tfile->Get("Fitter06/GBL/gblpx0"))->Clone();
   h_pull_biased[1] = (TH1D*) (tfile->Get("Fitter06/GBL/gblpy0"))->Clone();
@@ -520,19 +486,6 @@ void fitter(Int_t runnumber, Double_t ebeam)
   h_pull_biased[10] = (TH1D*)(tfile->Get("Fitter06/GBL/gblpx5"))->Clone();
   h_pull_biased[11] = (TH1D*)(tfile->Get("Fitter06/GBL/gblpy5"))->Clone();
 
-  h_pull_unbiased[0] = (TH1D*) (tfile->Get("Fitter00/GBL/gblpx0_unb"))->Clone();
-  h_pull_unbiased[1] = (TH1D*) (tfile->Get("Fitter00/GBL/gblpy0_unb"))->Clone();
-  h_pull_unbiased[2] = (TH1D*) (tfile->Get("Fitter01/GBL/gblpx1_unb"))->Clone();
-  h_pull_unbiased[3] = (TH1D*) (tfile->Get("Fitter01/GBL/gblpy1_unb"))->Clone();
-  h_pull_unbiased[4] = (TH1D*) (tfile->Get("Fitter02/GBL/gblpx2_unb"))->Clone();
-  h_pull_unbiased[5] = (TH1D*) (tfile->Get("Fitter02/GBL/gblpy2_unb"))->Clone();
-  h_pull_unbiased[6] = (TH1D*) (tfile->Get("Fitter03/GBL/gblpx3_unb"))->Clone();
-  h_pull_unbiased[7] = (TH1D*) (tfile->Get("Fitter03/GBL/gblpy3_unb"))->Clone();
-  h_pull_unbiased[8] = (TH1D*) (tfile->Get("Fitter04/GBL/gblpx4_unb"))->Clone();
-  h_pull_unbiased[9] = (TH1D*) (tfile->Get("Fitter04/GBL/gblpy4_unb"))->Clone();
-  h_pull_unbiased[10] = (TH1D*)(tfile->Get("Fitter05/GBL/gblpx5_unb"))->Clone();
-  h_pull_unbiased[11] = (TH1D*)(tfile->Get("Fitter05/GBL/gblpy5_unb"))->Clone();
-
   h_kink_pull[0] = (TH1D*) (tfile->Get("Fitter06/GBL/gbltx1"))->Clone();
   //h_kink_pull[1] = (TH1D*) (tfile->Get("Fitter06/GBL/gblty1"))->Clone();
   h_kink_pull[2] = (TH1D*) (tfile->Get("Fitter06/GBL/gbltx2"))->Clone();
@@ -542,77 +495,15 @@ void fitter(Int_t runnumber, Double_t ebeam)
   h_kink_pull[6] = (TH1D*) (tfile->Get("Fitter06/GBL/gbltx4"))->Clone();
   //h_kink_pull[7] = (TH1D*) (tfile->Get("Fitter06/GBL/gblty4"))->Clone();
 
-  h_kink_unb_pull[0] = (TH1D*) (tfile->Get("Fitter01/GBL/gbltx1"))->Clone();
-  //h_kink_unb_pull[1] = (TH1D*) (tfile->Get("Fitter01/GBL/gblty1"))->Clone();
-  h_kink_unb_pull[2] = (TH1D*) (tfile->Get("Fitter02/GBL/gbltx2"))->Clone();
-  //h_kink_unb_pull[3] = (TH1D*) (tfile->Get("Fitter02/GBL/gblty2"))->Clone();
-  h_kink_unb_pull[4] = (TH1D*) (tfile->Get("Fitter03/GBL/gbltx3"))->Clone();
-  //h_kink_unb_pull[5] = (TH1D*) (tfile->Get("Fitter03/GBL/gblty3"))->Clone();
-  h_kink_unb_pull[6] = (TH1D*) (tfile->Get("Fitter04/GBL/gbltx4"))->Clone();
-  //h_kink_unb_pull[7] = (TH1D*) (tfile->Get("Fitter04/GBL/gblty4"))->Clone();
 
   std::cout << "  - done" << std::endl;
   // Add the clustersizes 2-4 into the histos
   //
-  // --- No clustersize dependence possible at the moment with GBL tracks
-  if(clusterlimit >0)
-  {
-    std::cout << "Clustersize is limited. This is only implemented up to 4!" << std::endl;
-    TH1D *h_m26_2[planescount];
-    TH1D *h_m26_3[planescount];
-    TH1D *h_m26_4[planescount];
-    h_m26_2[0] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftX2"))->Clone();
-    h_m26_2[1] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftY2"))->Clone();
-    h_m26_2[2] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftX2"))->Clone();
-    h_m26_2[3] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftY2"))->Clone();
-    h_m26_2[4] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftX2"))->Clone();
-    h_m26_2[5] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftY2"))->Clone();
-    h_m26_2[6] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftX2"))->Clone();
-    h_m26_2[7] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftY2"))->Clone();
-    h_m26_2[8] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftX2"))->Clone();
-    h_m26_2[9] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftY2"))->Clone();
-    h_m26_2[10] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftX2"))->Clone();
-    h_m26_2[11] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftY2"))->Clone();
-
-    h_m26_3[0] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftX3"))->Clone();
-    h_m26_3[1] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftY3"))->Clone();
-    h_m26_3[2] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftX3"))->Clone();
-    h_m26_3[3] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftY3"))->Clone();
-    h_m26_3[4] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftX3"))->Clone();
-    h_m26_3[5] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftY3"))->Clone();
-    h_m26_3[6] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftX3"))->Clone();
-    h_m26_3[7] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftY3"))->Clone();
-    h_m26_3[8] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftX3"))->Clone();
-    h_m26_3[9] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftY3"))->Clone();
-    h_m26_3[10] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftX3"))->Clone();
-    h_m26_3[11] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftY3"))->Clone();
-
-    h_m26_4[0] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftX4"))->Clone();
-    h_m26_4[1] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftY4"))->Clone();
-    h_m26_4[2] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftX4"))->Clone();
-    h_m26_4[3] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftY4"))->Clone();
-    h_m26_4[4] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftX4"))->Clone();
-    h_m26_4[5] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftY4"))->Clone();
-    h_m26_4[6] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftX4"))->Clone();
-    h_m26_4[7] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftY4"))->Clone();
-    h_m26_4[8] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftX4"))->Clone();
-    h_m26_4[9] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftY4"))->Clone();
-    h_m26_4[10] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftX4"))->Clone();
-    h_m26_4[11] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftY4"))->Clone();
-
-    // Add the clustersize 2-4 histos into the "original" one and continue
-    for(int i=0;i<planescount;i++)
-    {
-      h_m26_3[i]->Add(h_m26_4[i]);
-      h_m26_2[i]->Add(h_m26_3[i]);
-      h_m26[i]->Add(h_m26_2[i]);
-    }
-  }
+  
 
   //  range
   for(int i=0;i<planescount;i++){
-    h_m26[i]->GetXaxis()->SetRangeUser(-100.,100);
-    h_m26_biased[i]->GetXaxis()->SetRangeUser(-100.,100);
+    h_residual_biased[i]->GetXaxis()->SetRangeUser(-100.,100);
   }
 
   // TCanvas *canv2;
@@ -620,35 +511,25 @@ void fitter(Int_t runnumber, Double_t ebeam)
   // canv2->SetFillColor(0);
   // canv2->Divide(2,3);
 
-  if (verbose1)
-  {
-    std::cout << "\n  Reading residuals from file...\n" << std::endl;
-  }
+  std::cout << "\n  Reading residuals from file...\n" << std::endl;
 
-  std::vector<double> vec_res_sigma_unbiasedX;
-  std::vector<double> vec_res_sigma_unbiasedY;
   std::vector<double> vec_res_sigma_biasedX;
   std::vector<double> vec_res_sigma_biasedY;
   std::vector<double> vec_pull_meanX;
   std::vector<double> vec_pull_meanY;
   std::vector<double> vec_pull_sigmaX;
   std::vector<double> vec_pull_sigmaY;
-  std::vector<double> vec_unb_pull_meanX;
-  std::vector<double> vec_unb_pull_meanY;
-  std::vector<double> vec_unb_pull_sigmaX;
-  std::vector<double> vec_unb_pull_sigmaY;
   std::vector<double> vec_kink_pull_meanX;
   std::vector<double> vec_kink_pull_sigmaX;
-  std::vector<double> vec_kink_unb_pull_meanX;
-  std::vector<double> vec_kink_unb_pull_sigmaX;
 
   // Sort into X or Y
   for(Int_t i = 0; i < nplanes*2; i++ )
   {
+    if(verbose1) std::cout << "  --- i = " << i << std::endl;
     canv->cd(i+1);
-    h_m26_biased[i]->Draw();
+    h_residual_biased[i]->Draw();
     gPad->Update();
-    TPaveStats * ps = (TPaveStats *)h_m26_biased[i]->FindObject("stats");
+    TPaveStats * ps = (TPaveStats *)h_residual_biased[i]->FindObject("stats");
     ps->SetX1NDC(0.65);
     ps->SetX2NDC(0.88);
     ps->SetY1NDC(0.30);
@@ -680,54 +561,32 @@ void fitter(Int_t runnumber, Double_t ebeam)
     sprintf(tmpstring, "Sensor %1.1i", j);
     st = tmpstring;
 
-    if(plot_residuals)
-    {
-      TString xtitle;
-      if(i == 0 || i == 2 || i == 4 ||  i == 6 || i == 8 || i == 10)
-	xtitle = "(x_{pred.} - x_{meas.}) / mm";
-      else
-	xtitle = "(y_{pred.} - y_{meas.}) / mm";
-
-      //format_mc(h_m26[i], 1, kBlue);
-      //histo_cfg(h_m26[i],xtitle , "tracks", st);
-      h_m26[i]->GetYaxis()->SetNoExponent();
-      h_m26[i]->GetYaxis()->SetTitleOffset(1.68);
-      h_m26[i]->GetXaxis()->SetTitleOffset(0.97);
-      h_m26[i]->GetYaxis()->SetTitleSize(0.035);
-      h_m26[i]->GetXaxis()->SetTitleSize(0.035);
-      h_m26[i]->GetYaxis()->SetLabelSize(0.035);
-      h_m26[i]->GetXaxis()->SetLabelSize(0.035);
-      h_m26[i]->GetXaxis()->SetLabelOffset(0.004);
-      //      gPad->SetLeftMargin(0.2238535);
-      h_m26[i]->SetMaximum(h_m26[i]->GetMaximum()*1.3);
-      h_m26[i]->DrawCopy("hist");
-    }
 
     // Fit the residuals
-    TF1 *f1 = new TF1("f1","gaus");
+    //TF1 *f1 = new TF1("f1","gaus");
     TF1 *f1_biased = new TF1("f1_biased","gaus");
 
-    float mean1 = h_m26[i]->GetMean();
-    float rms1 = h_m26[i]->GetRMS();
+    //float mean1 = h_m26[i]->GetMean();
+    //float rms1 = h_m26[i]->GetRMS();
 
-    float mean_biased = h_m26_biased[i]->GetMean();
-    float rms_biased  = h_m26_biased[i]->GetRMS();
+    float mean_biased = h_residual_biased[i]->GetMean();
+    float rms_biased  = h_residual_biased[i]->GetRMS();
 
     //std::cout << "Mean = " << mean1 << "   RMS = " << rms1 << std::endl;
 
-    f1->SetParameter(1,mean1);
-    f1->SetParameter(2,rms1);
-    f1->SetParLimits(2,rms1*0.5,rms1*2.);
+    //f1->SetParameter(1,mean1);
+    //f1->SetParameter(2,rms1);
+    //f1->SetParLimits(2,rms1*0.5,rms1*2.);
     //f1->FixParameter(2,16.);
     f1_biased->SetParameter(1,mean_biased);
     f1_biased->SetParameter(2,rms_biased);
 
-    h_m26[i]->Fit(f1,"QB");
-    h_m26_biased[i]->Fit(f1_biased,"EMQI0");
+    //h_m26[i]->Fit(f1,"QB");
+    h_residual_biased[i]->Fit(f1_biased,"EMQI0");
 
-    Double_t mean_1 = f1->GetParameter(1);
-    Double_t sigma_1 = f1->GetParameter(2);
-    Double_t sigma_error_1 = f1->GetParError(2);
+    //Double_t mean_1 = f1->GetParameter(1);
+    //Double_t sigma_1 = f1->GetParameter(2);
+    //Double_t sigma_error_1 = f1->GetParError(2);
 
 
     //std::cout << " --- simga from first fit = " << sigma_1 << std::endl;
@@ -739,32 +598,30 @@ void fitter(Int_t runnumber, Double_t ebeam)
     // Repeat within 2 sigma
 
     float nsig = 2.;
-    float low_lim = mean_1        - nsig*sigma_1;
-    float high_lim = mean_1        + nsig*sigma_1;
-    if(low_lim < -25.) low_lim = -24.9;
-    if(high_lim > 25.) high_lim = 24.9;
+    //float low_lim = mean_1        - nsig*sigma_1;
+    //float high_lim = mean_1        + nsig*sigma_1;
+    //if(low_lim < -25.) low_lim = -24.9;
+    //if(high_lim > 25.) high_lim = 24.9;
     float low_lim_biased = mean_1_biased        - nsig*sigma_1_biased;
     float high_lim_biased = mean_1_biased        + nsig*sigma_1_biased;
-    TF1 *f2 = new TF1("f2","gaus", low_lim, high_lim);
+    //TF1 *f2 = new TF1("f2","gaus", low_lim, high_lim);
     TF1 *f2_biased = new TF1("f2_biased","gaus", low_lim_biased, high_lim_biased);
-    f2->SetLineWidth(2);
-    f2->SetLineStyle(1);
-    f2->SetLineColor(kBlack);
+    //f2->SetLineWidth(2);
+    //f2->SetLineStyle(1);
+    //f2->SetLineColor(kBlack);
     f2_biased->SetLineWidth(2);
     f2_biased->SetLineStyle(1);
     f2_biased->SetLineColor(kBlack);
-    h_m26[i]->       Fit(f2,"EQMIR", "");
-    h_m26_biased[i]->Fit(f2_biased,"EQMIR","");
-    Double_t mean_2 = f2->GetParameter(1);
-    Double_t emean_2 = f2->GetParError(1);
+    //h_m26[i]->       Fit(f2,"EQMIR", "");
+    h_residual_biased[i]->Fit(f2_biased,"EQMIR","");
+    //Double_t mean_2 = f2->GetParameter(1);
+    //Double_t emean_2 = f2->GetParError(1);
     Double_t mean_2_biased = f2_biased->GetParameter(1);
     Double_t emean_2_biased = f2_biased->GetParError(1);
 
-    if (verbose0)
-      std::cout << " Measured residual mean plane " << j << " is " << (mean_2 ) << " mu m" << std::endl; // removed 1e3
 
-    Double_t sigma_2 = f2->GetParameter(2);
-    Double_t esigma_2 = f2->GetParError(2);
+    //Double_t sigma_2 = f2->GetParameter(2);
+    //Double_t esigma_2 = f2->GetParError(2);
     Double_t sigma_2_biased = f2_biased->GetParameter(2);
     Double_t esigma_2_biased = f2_biased->GetParError(2);
 
@@ -781,8 +638,8 @@ void fitter(Int_t runnumber, Double_t ebeam)
     //delete tscope;
 
     //Double_t sigma_error_2 = f2->GetParError(2) * 1000.0;
-    Double_t sigma_error_2 = 0.05 * sigma_2;
-    Double_t sigma_error_2_biased = 0.05 * sigma_2;
+    //Double_t sigma_error_2 = 0.05 * sigma_2;
+    Double_t sigma_error_2_biased = 0.05 * sigma_2_biased;
 
     // Now get resolution estimate
     //Double_t tel_resol = resol_estimate(sigma_2,j);
@@ -793,42 +650,39 @@ void fitter(Int_t runnumber, Double_t ebeam)
     // Fill fitted resolution into array
     if(i == 0 || i == 2 || i == 4 ||  i == 6 || i == 8 || i == 10)
     {
-      obsresol_x[j] = sigma_2*1.e-3;
-      obsresol_error_x[j] = sigma_error_2*1.e-3;
-      if(IsBiased)
-      {
 	obsresol_x[j] = sigma_2_biased*1.e-3;
 	obsresol_error_x[j] = sigma_error_2_biased*1.e-3;
-      }
     }
     else
     {
-      obsresol_y[j] = sigma_2*1.e-3; 
-      obsresol_error_y[j] = sigma_error_2*1.e-3;
-      if(IsBiased)
-      {
 	obsresol_y[j] = sigma_2_biased*1.e-3;
 	obsresol_error_y[j] = sigma_error_2_biased*1.e-3;
-      }
     }
 
-    //std::cout << " perform fits " << std::endl;
+    if(verbose0) std::cout << " perform fits " << std::endl;
     double mean = 0.;
     double sigma = 0.;
 
     canv_pulls->cd(i+1);
+    h_pull_biased[i]->Draw();
+    gPad->Update();
+    ps = (TPaveStats *)h_pull_biased[i]->FindObject("stats");
+    ps->SetX1NDC(0.65);
+    ps->SetX2NDC(0.88);
+    ps->SetY1NDC(0.30);
+    ps->SetY2NDC(0.98);
     DoGausFit(h_pull_biased[i], mean, sigma);
     canv_pulls->Modified();
     canv_pulls->Update();
 
     if(i%2 == 0) {
-      vec_res_sigma_unbiasedX.push_back(sigma_2);
+      //vec_res_sigma_unbiasedX.push_back(sigma_2);
       vec_res_sigma_biasedX.push_back(sigma_2_biased);
       vec_pull_meanX.push_back(mean);
       vec_pull_sigmaX.push_back(sigma);
     }
     if(i%2 == 1) {
-      vec_res_sigma_unbiasedY.push_back(sigma_2);
+      //vec_res_sigma_unbiasedY.push_back(sigma_2);
       vec_res_sigma_biasedY.push_back(sigma_2_biased);
       vec_pull_meanY.push_back(mean);
       vec_pull_sigmaY.push_back(sigma);
@@ -836,26 +690,17 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
     mean = 0;
     sigma = 0;
-    canv_unb_pulls->cd(i+1);
-    DoGausFit(h_pull_unbiased[i], mean, sigma);
-    canv_unb_pulls->Modified();
-    canv_unb_pulls->Update();
-
-    if(i%2 == 0) {
-      vec_unb_pull_meanX.push_back(mean);
-      vec_unb_pull_sigmaX.push_back(sigma);
-    }
-    if(i%2 == 1) {
-      vec_unb_pull_meanY.push_back(mean);
-      vec_unb_pull_sigmaY.push_back(sigma);
-
-    }
-
-    mean = 0;
-    sigma = 0;
     if( i > 1 && i < 10){
-      canv_kink_pulls->cd(i+1);
       if(i%2 == 0) {
+        canv_kink_pulls->cd(i+1-2);    
+        h_kink_pull[i]->Draw();
+        gPad->Update();
+        ps = (TPaveStats *)h_kink_pull[i]->FindObject("stats");
+        ps->SetX1NDC(0.65);
+        ps->SetX2NDC(0.88);
+        ps->SetY1NDC(0.30);
+        ps->SetY2NDC(0.98);
+
 	DoGausFit(h_kink_pull[i-2], mean, sigma);
 	vec_kink_pull_meanX.push_back(mean);
 	vec_kink_pull_sigmaX.push_back(sigma);
@@ -871,16 +716,7 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
     mean = 0;
     sigma = 0;
-    if( i > 1 && i < 10){
-      canv_kink_unb_pulls->cd(i+1);
-      if(i%2 == 0) {
-	DoGausFit(h_kink_unb_pull[i-2], mean, sigma);
-	vec_kink_unb_pull_meanX.push_back(mean);
-	vec_kink_unb_pull_sigmaX.push_back(sigma);
-      }
-      canv_kink_unb_pulls->Modified();
-      canv_kink_unb_pulls->Update();
-    }
+
 
     //if(i%2 == 1) {
     //  vec_kinks_meanY.push_back(mean);
@@ -889,23 +725,6 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
 
 
-    // Plot this
-    if(plot_residuals)
-    {
-      TPaveText *label;
-      label = new TPaveText(0.2588087,0.7992021,0.6363255,0.8823138, "brNDC");
-      label->SetTextAlign(11);
-      label->SetTextFont(22);
-      label->SetTextSize(0.08);
-      label->SetFillStyle(0);
-      label->SetBorderSize(0);
-      TString sigmatext = "";
-      char tmpstring2[500];
-      sprintf(tmpstring2, "#sigma = (%1.3f #pm %1.3f) #mum", sigma_2, sigma_error_2);
-      sigmatext = tmpstring2;
-      label->AddText(sigmatext);
-      label->Draw();
-    }
     if (i == 0) {
       std::string s_runnumber = "Run number ";
       s_runnumber += std::to_string(runnumber);
@@ -917,22 +736,12 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
     //Fill mean vector
     //std::cout << "PB, j = " << j << " mean = " << mean_2 << " emean = " << emean_2 << std::endl;
-    if(!IsBiased)
-    {
-      v_mean.push_back(mean_2);
-      v_emean.push_back(emean_2);
-      v_sigma.push_back(sigma_2);
-      v_esigma.push_back(esigma_2);
-    } else {
       v_mean.push_back(mean_2_biased);
       v_emean.push_back(emean_2_biased);
       v_sigma.push_back(sigma_2_biased);
       v_esigma.push_back(esigma_2_biased);
-    }
 
-    delete f1;
     delete f1_biased;
-    delete f2;
     delete f2_biased;
 
 
@@ -985,50 +794,10 @@ void fitter(Int_t runnumber, Double_t ebeam)
     std::cout << vec_res_sigma_biasedX.at(i) << " ";
     avg_res_sigma += vec_res_sigma_biasedX.at(i)/6.;
   }
-  std::cout  << "   avgX = " << avg_res_sigma;
-  DoRMS(vec_res_sigma_biasedX,rms_res_sigma);
-  std::cout  << "   rmsX = " << rms_res_sigma << std::endl;
+  //std::cout  << "   avgX = " << avg_res_sigma;
+  //DoRMS(vec_res_sigma_biasedX,rms_res_sigma);
+  //std::cout  << "   rmsX = " << rms_res_sigma << std::endl;
 
-  double avg_unb_pull_sigma = .0;
-  double rms_unb_pull_sigma = .0;
-  std::cout << " vec_unb_pull_sigmaX = ";
-  for(unsigned int i = 0; i<6; i++){
-    std::cout << vec_unb_pull_sigmaX.at(i) << " ";
-    avg_unb_pull_sigma += vec_unb_pull_sigmaX.at(i)/6.;
-  }
-  std::cout  << " unb avgX = " << avg_unb_pull_sigma;
-  DoRMS(vec_unb_pull_sigmaX,rms_unb_pull_sigma);
-  std::cout  << "   rmsX = " << rms_unb_pull_sigma << std::endl;
-
-  avg_unb_pull_sigma = .0;
-  rms_unb_pull_sigma = .0;
-  std::cout << " vec_unb_pull_sigmaY = ";
-  for(unsigned int i = 0; i<6; i++){
-    std::cout << vec_unb_pull_sigmaY.at(i) << " ";
-    avg_unb_pull_sigma += vec_unb_pull_sigmaY.at(i)/6.;
-  }
-  std::cout  << " unb avgY = " << avg_unb_pull_sigma;
-  DoRMS(vec_unb_pull_sigmaY,rms_unb_pull_sigma);
-  std::cout  << "   rmsY = " << rms_unb_pull_sigma << std::endl;
-
-
-  /*float avg_sig_intX = .0;
-    std::cout << " sqrt(vec_res_sigma_unbiasedX * vec_res_sigma_biasedX) = ";
-    for(unsigned int i = 0; i<6; i++){
-    std::cout << "sqrt( " << vec_res_sigma_unbiasedX.at(i) << " * " << vec_res_sigma_biasedX.at(i) << ") = " 
-    << sqrt(vec_res_sigma_unbiasedX.at(i)*vec_res_sigma_biasedX.at(i)) << " ";
-    avg_sig_intX += sqrt(vec_res_sigma_unbiasedX.at(i)*vec_res_sigma_biasedX.at(i))/6.;
-    }
-    std::cout  << "   avgX = " << avg_sig_intX << std::endl;
-
-    float avg_sig_intY = .0;
-    std::cout << " sqrt(vec_res_sigma_unbiasedY * vec_res_sigma_biasedY) = ";
-    for(unsigned int i = 0; i<6; i++){
-    std::cout << sqrt(vec_res_sigma_unbiasedY.at(i)*vec_res_sigma_biasedY.at(i)) << " ";
-    avg_sig_intY += sqrt(vec_res_sigma_unbiasedY.at(i)*vec_res_sigma_biasedY.at(i))/6.;
-    }
-    std::cout  << "   avgY = " << avg_sig_intY << std::endl;
-    */
 
   float avg_kink_pull_sigma = .0;
   std::cout << " vec_kink_pull_sigmaX = ";
@@ -1047,32 +816,10 @@ void fitter(Int_t runnumber, Double_t ebeam)
     std::cout  << " avg kink Y = " << avg_kinks_sigma << std::endl;
     */
 
-  double avg_kink_unb_pull_sigma = .0;
-  double rms_kink_unb_pull_sigma = .0;
-  std::cout << " vec_kink_unb_pull_sigmaX = ";
-  for(unsigned int i = 0; i<4; i++){
-    std::cout << vec_kink_unb_pull_sigmaX.at(i) << " ";
-    avg_kink_unb_pull_sigma += vec_kink_unb_pull_sigmaX.at(i)/4.;
-  }
-  std::cout  << " avg kink unb_pull X = " << avg_kink_unb_pull_sigma;
-  DoRMS(vec_kink_unb_pull_sigmaX,rms_kink_unb_pull_sigma);
-  std::cout  << "   rmsX = " << rms_kink_unb_pull_sigma << std::endl;
-
 
 
   v_runnumber.push_back((double)runnumber);
   v_erunnumber.push_back(0.0);
-
-  // use this for biased
-  if(IsBiased){
-    if(runnumber > 113 && runnumber < 700) pulls20  << runnumber << " " << std::fixed << std::setprecision(6) <<  (vec_pull_sigmaX.at(0)+ vec_pull_sigmaY.at(0))/2. << " " <<  (vec_pull_sigmaX.at(1)+vec_pull_sigmaY.at(1))/2. << " " <<  (vec_pull_sigmaX.at(2)+vec_pull_sigmaY.at(2))/2. << " " <<  (vec_pull_sigmaX.at(3)+vec_pull_sigmaY.at(3))/2. << " " <<  (vec_pull_sigmaX.at(4)+vec_pull_sigmaY.at(4))/2. << " " <<  (vec_pull_sigmaX.at(5)+vec_pull_sigmaY.at(5))/2. << "\n";
-    if(runnumber < 113 || runnumber > 700) pulls150  << runnumber << " " << std::fixed << std::setprecision(6) <<  (vec_pull_sigmaX.at(0)+ vec_pull_sigmaY.at(0))/2. << " " <<  (vec_pull_sigmaX.at(1)+vec_pull_sigmaY.at(1))/2. << " " <<  (vec_pull_sigmaX.at(2)+vec_pull_sigmaY.at(2))/2. << " " <<  (vec_pull_sigmaX.at(3)+vec_pull_sigmaY.at(3))/2. << " " <<  (vec_pull_sigmaX.at(4)+vec_pull_sigmaY.at(4))/2. << " " <<  (vec_pull_sigmaX.at(5)+vec_pull_sigmaY.at(5))/2. << "\n"; }
-  else {
-
-    // use this for unbiased
-    if(runnumber > 113 && runnumber < 700) pulls20  << runnumber << " " << std::fixed << std::setprecision(6) <<  (vec_unb_pull_sigmaX.at(0)+ vec_unb_pull_sigmaY.at(0))/2. << " " <<  (vec_unb_pull_sigmaX.at(1)+vec_unb_pull_sigmaY.at(1))/2. << " " <<  (vec_unb_pull_sigmaX.at(2)+vec_unb_pull_sigmaY.at(2))/2. << " " <<  (vec_unb_pull_sigmaX.at(3)+vec_unb_pull_sigmaY.at(3))/2. << " " <<  (vec_unb_pull_sigmaX.at(4)+vec_unb_pull_sigmaY.at(4))/2. << " " <<  (vec_unb_pull_sigmaX.at(5)+vec_unb_pull_sigmaY.at(5))/2. << "\n";
-    if(runnumber < 113 || runnumber > 700) pulls150  << runnumber << " " << std::fixed << std::setprecision(6) <<  (vec_unb_pull_sigmaX.at(0)+ vec_unb_pull_sigmaY.at(0))/2. << " " <<  (vec_unb_pull_sigmaX.at(1)+vec_unb_pull_sigmaY.at(1))/2. << " " <<  (vec_unb_pull_sigmaX.at(2)+vec_unb_pull_sigmaY.at(2))/2. << " " <<  (vec_unb_pull_sigmaX.at(3)+vec_unb_pull_sigmaY.at(3))/2. << " " <<  (vec_unb_pull_sigmaX.at(4)+vec_unb_pull_sigmaY.at(4))/2. << " " <<  (vec_unb_pull_sigmaX.at(5)+vec_unb_pull_sigmaY.at(5))/2. << "\n";
-  }
 
   TString outputname="run_";
   outputname+=runnumber;
@@ -1084,12 +831,8 @@ void fitter(Int_t runnumber, Double_t ebeam)
   canv->Close();
   canv_pulls->Write();
   canv_pulls->Close();
-  canv_unb_pulls->Write();
-  canv_unb_pulls->Close();
   canv_kink_pulls->Write();
   canv_kink_pulls->Close();
-  canv_kink_unb_pulls->Write();
-  canv_kink_unb_pulls->Close();
 
   // Run mean offset calculator with energy and measured resolutions
   //run_res_offset( ebeam, obsresol_x, obsresol_error_x, obsresol_y, obsresol_error_y );
@@ -1104,10 +847,10 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
   //std::cout << " runnumber%20 = " << runnumber%10 << std::endl;
   g_obsresidualX->SetMarkerStyle(runnumber%10 + 20);
-  g_obsresidualX->SetMarkerColor(runnumber%10);
+  g_obsresidualX->SetMarkerColor(runnumber%9+1);
   g_obsresidualX->SetMarkerSize(1.2);
   g_obsresidualY->SetMarkerStyle(runnumber%10 + 20);
-  g_obsresidualY->SetMarkerColor(runnumber%10);
+  g_obsresidualY->SetMarkerColor(runnumber%9+1);
   g_obsresidualY->SetMarkerSize(1.2);
 
 
@@ -1118,9 +861,7 @@ void fitter(Int_t runnumber, Double_t ebeam)
 
   delete canv;
   delete canv_pulls;
-  delete canv_unb_pulls;
   delete canv_kink_pulls;
-  delete canv_kink_unb_pulls;
 
 
 }
@@ -1129,8 +870,7 @@ void fitter(Int_t runnumber, Double_t ebeam)
 void noise(Int_t runnumber)
 {
   std::string help;
-  if(runnumber < 113 || runnumber > 700) help = inputDir150 + inputFile;
-  else help = inputDir20 + inputFile;
+  help = inputDir20 + inputFile;
   TString filename(help.c_str());
   if (runnumber <= 999)
     filename+="0";
@@ -1199,217 +939,6 @@ void noise(Int_t runnumber)
 }
 
 
-// FIXME update code to get clustersize from hits in GBL tracks
-void getclusize(Int_t runnumber)
-{
-  std::string help;
-  if(runnumber < 113 || runnumber > 700) help = inputDir150 + inputFile;
-  else help = inputDir20 + inputFile;
-  TString filename(help.c_str());
-  if (runnumber <= 999)
-    filename+="0";
-  if (runnumber <= 99)
-    filename+="0";
-  filename+=runnumber;
-  filename+="-fitter.root";
-  TFile *tfile = new TFile(filename);
-  TH1D *h_m26[planescount];
-  TH1D *h_m26_eff[planescount];
-  tfile->cd();
-
-  // Load file
-  h_m26[0] = (TH1D*) (tfile->Get("DUTHisto00/clusterSizeX"))->Clone();
-  h_m26[1] = (TH1D*) (tfile->Get("DUTHisto00/clusterSizeY"))->Clone();
-  h_m26[2] = (TH1D*) (tfile->Get("DUTHisto01/clusterSizeX"))->Clone();
-  h_m26[3] = (TH1D*) (tfile->Get("DUTHisto01/clusterSizeY"))->Clone();
-  h_m26[4] = (TH1D*) (tfile->Get("DUTHisto02/clusterSizeX"))->Clone();
-  h_m26[5] = (TH1D*) (tfile->Get("DUTHisto02/clusterSizeY"))->Clone();
-  h_m26[6] = (TH1D*) (tfile->Get("DUTHisto03/clusterSizeX"))->Clone();
-  h_m26[7] = (TH1D*) (tfile->Get("DUTHisto03/clusterSizeY"))->Clone();
-  h_m26[8] = (TH1D*) (tfile->Get("DUTHisto04/clusterSizeX"))->Clone();
-  h_m26[9] = (TH1D*) (tfile->Get("DUTHisto04/clusterSizeY"))->Clone();
-  h_m26[10] = (TH1D*) (tfile->Get("DUTHisto05/clusterSizeX"))->Clone();
-  h_m26[11] = (TH1D*) (tfile->Get("DUTHisto05/clusterSizeY"))->Clone();
-
-  // Add the values for all 6 sensor planes, in x and y and divide by 12
-  Double_t clustervalue = 0;
-  Double_t clustervalue_error = 0;
-  for(int i=0;i<planescount;i++)
-  {
-    clustervalue += h_m26[i]->GetMean(1);
-    clustervalue_error += h_m26[i]->GetMeanError(1);
-  }
-  avgclustersize = clustervalue / (float)planescount;
-  avgclustersize_error = clustervalue_error / (float)planescount;
-}
-
-
-void getpointing(Int_t runnumber, float sigm26)
-{
-  std::string help;
-  if(runnumber < 113 || runnumber > 700) help = inputDir150 + inputFile;
-  else help = inputDir20 + inputFile;
-  TString filename(help.c_str());
-  if (runnumber <= 999)
-    filename+="0";
-  if (runnumber <= 99)
-    filename+="0";
-  filename+=runnumber;
-  filename+="-fitter.root";
-  TFile *tfile = new TFile(filename);
-  TH1D *h_m26[planescount];
-  TH1D *h_m26_eff[planescount];
-  tfile->cd();
-
-  std::cout << "File is " << runnumber << std::endl;
-
-  // Load file
-  h_m26[0] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftX"))->Clone();
-  h_m26[1] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftY"))->Clone();
-  h_m26[2] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftX"))->Clone();
-  h_m26[3] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftY"))->Clone();
-  h_m26[4] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftX"))->Clone();
-  h_m26[5] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftY"))->Clone();
-  h_m26[6] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftX"))->Clone();
-  h_m26[7] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftY"))->Clone();
-  h_m26[8] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftX"))->Clone();
-  h_m26[9] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftY"))->Clone();
-  h_m26[10] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftX"))->Clone();
-  h_m26[11] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftY"))->Clone();
-
-  Double_t sigmeas = 0;
-  Double_t sigmeas_error = 0;
-  for (int i = 4; i<6; i++)
-  {
-    TF1 *f1 = new TF1("f1","gaus");
-    TF1 *f2 = new TF1("f2","gaus");
-    f2->SetLineWidth(2);
-    f2->SetLineStyle(1);
-    f2->SetLineColor(kBlack);
-    h_m26[i]->Fit(f1,"EMQI0","");
-    Double_t mean_1 = f1->GetParameter(1);
-    Double_t sigma_1 = f1->GetParameter(2);
-
-
-
-    // Repeat within 2 sigma
-    h_m26[i]->Fit(f2,"EQMI","", (mean_1 - 2.0*sigma_1), (mean_1 + 2.0*sigma_1));
-    Double_t mean_2 = f2->GetParameter(1);
-    Double_t sigma_2 = f2->GetParameter(2);
-    Double_t sigma_2e = f2->GetParError(2);
-
-    std::cout << "measured width: " << sigma_2*1000.0 << std::endl;
-
-    sigmeas += sigma_2*1000.0;
-    sigmeas_error += sigma_2e*1000.0;
-  }
-
-
-  //sigm26 = 3.42;
-  //Double_t sigm26_e = 0.12;
-  Double_t sigm26_e = 0.035;
-
-
-  // these lines for extrapolation to telescope center:
-
-
-  float kfive = 0.2209302326;
-
-  avgmeas = sqrt( (sigmeas / 2.0)*(sigmeas / 2.0) + sigm26*sigm26*((1.0/6.0) - kfive - 1.0) );
-  avgmeas_error = sqrt((sigmeas/2.0*sigmeas_error/2.0/avgmeas)*(sigmeas/2.0*sigmeas_error/2.0/avgmeas) + (sigm26*sigm26_e/avgmeas*((1.0/6.0) - kfive - 1.0))*(sigm26*sigm26_e/avgmeas*((1.0/6.0) - kfive - 1.0)));
-
-  std::cout << "sigmeas is " << sigmeas/2.0 << " pm " << sigmeas_error/2.0 << std::endl;
-  std::cout << "pointing res at center telescope is " << avgmeas << " pm  " << avgmeas_error << std::endl;
-  std::cout << std::endl;
-
-
-}
-
-
-void histoplot(Int_t runnumber)
-{
-  std::string help;
-  if(runnumber < 113 || runnumber > 700) help = inputDir150 + inputFile;
-  else help = inputDir20 + inputFile;
-  TString filename(help.c_str());
-  if (runnumber <= 999)
-    filename+="0";
-  if (runnumber <= 99)
-    filename+="0";
-  filename+=runnumber;
-  filename+="-fitter.root";
-  TFile *tfile = new TFile(filename);
-  TH1D *h_m26[planescount];
-  TH1D *h_m26_eff[planescount];
-  tfile->cd();
-
-  std::cout << "File is " << runnumber << std::endl;
-
-  // Load file
-  h_m26[0] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftX"))->Clone();
-  h_m26[1] = (TH1D*) (tfile->Get("DUTHisto00/DUTshiftY"))->Clone();
-  h_m26[2] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftX"))->Clone();
-  h_m26[3] = (TH1D*) (tfile->Get("DUTHisto01/DUTshiftY"))->Clone();
-  h_m26[4] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftX"))->Clone();
-  h_m26[5] = (TH1D*) (tfile->Get("DUTHisto02/DUTshiftY"))->Clone();
-  h_m26[6] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftX"))->Clone();
-  h_m26[7] = (TH1D*) (tfile->Get("DUTHisto03/DUTshiftY"))->Clone();
-  h_m26[8] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftX"))->Clone();
-  h_m26[9] = (TH1D*) (tfile->Get("DUTHisto04/DUTshiftY"))->Clone();
-  h_m26[10] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftX"))->Clone();
-  h_m26[11] = (TH1D*) (tfile->Get("DUTHisto05/DUTshiftY"))->Clone();
-
-  double val[planescount];
-
-
-  for (int i = 0; i<planescount; i++)
-  {
-    TF1 *f1 = new TF1("f1","gaus");
-    TF1 *f2 = new TF1("f2","gaus");
-    f2->SetLineWidth(2);
-    f2->SetLineStyle(1);
-    f2->SetLineColor(kBlack);
-    h_m26[i]->Fit(f1,"EMQI0","");
-    Double_t mean_1 = f1->GetParameter(1);
-    Double_t sigma_1 = f1->GetParameter(2);
-
-
-
-    // Repeat within 2 sigma
-    h_m26[i]->Fit(f2,"EQMI","", (mean_1 - 2.0*sigma_1), (mean_1 + 2.0*sigma_1));
-    Double_t mean_2 = f2->GetParameter(1);
-    Double_t sigma_2 = f2->GetParameter(2);
-    Double_t sigma_2e = f2->GetParError(2);
-
-    std::cout << "measured width: " << sigma_2*1000.0 << std::endl;
-
-    val[i] = sigma_2*1000.0;
-
-  }
-
-  delta0->Fill(fabs(val[0]-val[1]));
-  delta1->Fill(fabs(val[2]-val[3]));
-  delta2->Fill(fabs(val[4]-val[5]));
-  delta3->Fill(fabs(val[6]-val[7]));
-  delta4->Fill(fabs(val[8]-val[9]));
-  delta5->Fill(fabs(val[10]-val[11]));
-
-
-
-
-
-  delta6->Fill(fabs(val[0]-val[10]));
-  delta7->Fill(fabs(val[2]-val[8]));
-  delta8->Fill(fabs(val[4]-val[6]));
-  delta9->Fill(fabs(val[1]-val[11]));
-  delta10->Fill(fabs(val[3]-val[9]));
-  delta11->Fill(fabs(val[5]-val[7]));
-
-
-
-
-
-}
 
 void FillGraph(){
   int size = (v_mean.size()) / (2*nplanes);
@@ -1445,7 +974,7 @@ void FillGraph(){
   std::string name;
   for(int i = 0; i<2*nplanes; i++)
   {
-    name = "Mean" + std::to_string(i);
+    name = "Residual Mean" + std::to_string(i)+" per RN";
     g_mean[i]->SetNameTitle(name.c_str(), name.c_str());
   }
 
@@ -1495,8 +1024,14 @@ void FillGraph(){
 
   for(int i = 0; i<2*nplanes; i++)
   {
-    name = "Measured-Residual" + std::to_string(i);
+    name = "Residual width" + std::to_string(i) + " per RN";
     g_sigma[i]->SetNameTitle(name.c_str(), name.c_str());
+    g_sigma[i]->SetMarkerStyle(i%10 + 20);
+    g_sigma[i]->SetMarkerColor(i%9+1);
+    g_sigma[i]->SetMarkerSize(1.2);
+    g_sigma[i]->SetMarkerStyle(i%10 + 20);
+    g_sigma[i]->SetMarkerColor(i%9+1);
+    g_sigma[i]->SetMarkerSize(1.2);
   }
 
   std::cout << " SetPoints and Erros" << std::endl;
@@ -1525,14 +1060,14 @@ void FillGraph(){
 
   for(int i = 0; i<2*nplanes; i++)
   {
-    g_mean[i]->Draw("ap");
+    g_mean[i]->Draw("AP");
     g_mean[i]->Write();
   }
 
 
   for(int i = 0; i<2*nplanes; i++)
   {
-    g_sigma[i]->Draw("ap");
+    g_sigma[i]->Draw("AP");
     g_sigma[i]->Write();
   }
 
@@ -1587,7 +1122,6 @@ int main()
   gROOT->SetStyle("Plain");
 
   inputDir20  = "../../analysis-20mm/output/histograms/";
-  inputDir150  = "../../analysis-150mm/output/histograms/";
   inputFile = "run00";
 
   _outputFile = new TFile("../bin/output.root", "RECREATE");
@@ -1601,158 +1135,66 @@ int main()
 
 
   // Initialises the run vectors
-  std::vector<int> run_6_150;
-  std::vector<int> run_5_150;
-  std::vector<int> run_4_150;
-  std::vector<int> run_3_150;
-  std::vector<int> run_2_150;
-  std::vector<int> run_6_20;
   std::vector<int> run_5_20;
   std::vector<int> run_4_20;
   std::vector<int> run_3_20;
   std::vector<int> run_2_20;
-  std::vector<int> run120;
+  std::vector<int> run_1_20;
 
   // Fills the run vectors with runnumbers
   if(true)
   {
-    // 150 mm
-    // energy 6 GeV:
-    run_6_150.push_back(60);	// thr 3
-    run_6_150.push_back(61);	// thr 4
-    run_6_150.push_back(62);	// thr 5
-    run_6_150.push_back(63);	// thr 6
-    run_6_150.push_back(64);	// thr 7
-    run_6_150.push_back(65);	// thr 8
-    run_6_150.push_back(66);	// thr 9
-    run_6_150.push_back(67);	// thr 10
-    run_6_150.push_back(68);	// thr 11
-    run_6_150.push_back(69);	// thr 12
-
-    // energy 5 GeV:
-    run_5_150.push_back(70);	// thr 3
-    run_5_150.push_back(71);	// thr 4
-    run_5_150.push_back(72);	// thr 5
-    run_5_150.push_back(73);	// thr 6
-    run_5_150.push_back(74);	// thr 7
-    run_5_150.push_back(75);	// thr 8
-    run_5_150.push_back(76);	// thr 9
-    run_5_150.push_back(77);	// thr 10
-    run_5_150.push_back(78);	// thr 11
-    run_5_150.push_back(79);	// thr 12
-
-    // energy 4 GeV:
-    run_4_150.push_back(81);	// thr 3
-    run_4_150.push_back(82);	// thr 4
-    run_4_150.push_back(83);	// thr 5
-    run_4_150.push_back(84);	// thr 6
-    run_4_150.push_back(85);	// thr 7
-    run_4_150.push_back(86);	// thr 8
-    run_4_150.push_back(89);	// thr 9
-    run_4_150.push_back(90);	// thr 10
-    run_4_150.push_back(91);	// thr 11
-    run_4_150.push_back(92);	// thr 12
-
-    // energy 3 GeV:
-    run_3_150.push_back(93);	// thr 3
-    run_3_150.push_back(94);	// thr 4
-    run_3_150.push_back(95);	// thr 5
-    run_3_150.push_back(96);	// thr 6
-    run_3_150.push_back(97);	// thr 7
-    run_3_150.push_back(98);	// thr 8
-    run_3_150.push_back(99);	// thr 9
-    run_3_150.push_back(100);	// thr 10
-    run_3_150.push_back(101);	// thr 11
-    run_3_150.push_back(102);	// thr 12
-
-    // energy 2 GeV:
-    run_2_150.push_back(103);	// thr 3
-    run_2_150.push_back(104);	// thr 4
-    run_2_150.push_back(105);	// thr 5
-    run_2_150.push_back(106);	// thr 6
-    run_2_150.push_back(107);	// thr 7
-    run_2_150.push_back(108);	// thr 8
-    run_2_150.push_back(109);	// thr 9
-    run_2_150.push_back(110);	// thr 10
-    run_2_150.push_back(111);	// thr 11
-    run_2_150.push_back(112);	// thr 12
 
     // 20 mm
-    // energy 6 GeV:
-    run_6_20.push_back(114);	// thr 3
-    run_6_20.push_back(115);	// thr 4
-    run_6_20.push_back(116);	// thr 5
-    run_6_20.push_back(117);	// thr 6
-    run_6_20.push_back(118);	// thr 7
-    run_6_20.push_back(119);	// thr 8
-    run_6_20.push_back(120);	// thr 9
-    run_6_20.push_back(121);	// thr 10
-    run_6_20.push_back(122);	// thr 11
-    run_6_20.push_back(123);	// thr 12
-
     // energy 5 GeV:
-    run_5_20.push_back(124);	// thr 3
-    run_5_20.push_back(125);	// thr 4
-    run_5_20.push_back(126);	// thr 5
-    run_5_20.push_back(127);	// thr 6
-    run_5_20.push_back(128);	// thr 7
-    run_5_20.push_back(129);	// thr 8
-    run_5_20.push_back(130);	// thr 9
-    run_5_20.push_back(131);	// thr 10
-    run_5_20.push_back(132);	// thr 11
-    run_5_20.push_back(133);	// thr 12
+    run_5_20.push_back(5);	// alu     0
+    run_5_20.push_back(57);	// alu    13
+    run_5_20.push_back(7);	// alu    25
+    run_5_20.push_back(20);	// alu    50
+    run_5_20.push_back(22);	// alu   100
+    run_5_20.push_back(36);	// alu   200
+    run_5_20.push_back(38);	// alu  1000
+    run_5_20.push_back(50);	// alu 10000
 
     // energy 4 GeV:
-    run_4_20.push_back(134);	// thr 3
-    run_4_20.push_back(135);	// thr 4
-    run_4_20.push_back(136);	// thr 5
-    run_4_20.push_back(137);	// thr 6
-    run_4_20.push_back(140);	// thr 7
-    run_4_20.push_back(141);	// thr 8
-    run_4_20.push_back(142);	// thr 9
-    run_4_20.push_back(143);	// thr 10
-    run_4_20.push_back(144);	// thr 11
-    run_4_20.push_back(145);	// thr 12
+    run_4_20.push_back(4);	// alu     0
+    run_4_20.push_back(56);	// alu    13
+    run_4_20.push_back(9);	// alu    25
+    run_4_20.push_back(19);	// alu    50
+    run_4_20.push_back(23);	// alu   100
+    run_4_20.push_back(35);	// alu   200
+    run_4_20.push_back(39);	// alu  1000
+    run_4_20.push_back(49);	// alu 10000
 
     // energy 3 GeV:
-    run_3_20.push_back(146);	// thr 3
-    run_3_20.push_back(147);	// thr 4
-    run_3_20.push_back(148);	// thr 5
-    run_3_20.push_back(153);	// thr 6
-    run_3_20.push_back(154);	// thr 7
-    run_3_20.push_back(155);	// thr 8
-    run_3_20.push_back(156);	// thr 9
-    run_3_20.push_back(157);	// thr 10
-    run_3_20.push_back(158);	// thr 11
-    run_3_20.push_back(161);	// thr 12
+    run_3_20.push_back(3);	// alu     0
+    run_3_20.push_back(55);	// alu    13
+    run_3_20.push_back(11);	// alu    25
+    run_3_20.push_back(18);	// alu    50
+    run_3_20.push_back(24);	// alu   100
+    run_3_20.push_back(33);	// alu   200
+    run_3_20.push_back(41);	// alu  1000
+    run_3_20.push_back(48);	// alu 10000
 
     // energy 2 GeV:
-    run_2_20.push_back(162);	// thr 3
-    run_2_20.push_back(163);	// thr 4
-    run_2_20.push_back(164);	// thr 5
-    run_2_20.push_back(165);	// thr 6
-    run_2_20.push_back(166);	// thr 7
-    run_2_20.push_back(167);	// thr 8
-    run_2_20.push_back(168);	// thr 9
-    run_2_20.push_back(169);	// thr 10
-    run_2_20.push_back(170);	// thr 11
-    run_2_20.push_back(171);	// thr 12
+    run_2_20.push_back(1);	// alu     0
+    run_2_20.push_back(54);	// alu    13
+    run_2_20.push_back(12);	// alu    25
+    run_2_20.push_back(17);	// alu    50
+    run_2_20.push_back(26);	// alu   100
+    run_2_20.push_back(32);	// alu   200
+    run_2_20.push_back(42);	// alu  1000
+    run_2_20.push_back(47);	// alu 10000
 
-
-    // energy 120 GeV CERN, 150mm Data:
-    //run120.push_back(752);	// thr 3
-    //run120.push_back(753);	// thr 4
-    run120.push_back(754);	// thr 5 // !!?? Push back 754 as place holders
-    run120.push_back(754);	// thr 5
-    run120.push_back(754);	// thr 5
-    run120.push_back(755);	// thr 6
-    run120.push_back(756);	// thr 7
-    run120.push_back(757);	// thr 8
-    run120.push_back(758);	// thr 9
-    run120.push_back(759);	// thr 10        alternative: 760
-    run120.push_back(760);	// thr 10        alternative: 759
-    run120.push_back(761);	// thr 11
-    run120.push_back(762);	// thr 12
+    // energy 1 GeV:
+    run_1_20.push_back(2);	// alu     0
+    run_1_20.push_back(52);	// alu    13
+    run_1_20.push_back(13);	// alu    25
+    run_1_20.push_back(15);	// alu    50
+    run_1_20.push_back(28);	// alu   100
+    run_1_20.push_back(30);	// alu   200
+    run_1_20.push_back(44);	// alu  1000
+    run_1_20.push_back(46);	// alu 10000
 
   }
 
@@ -2235,25 +1677,19 @@ int main()
     std::vector<double> ethres;
     // Get histograms to be checked
     //
-    for (Int_t j=0; j<threshcount; j++)
+    for (Int_t j=0; j<alucount; j++)
     {
       std::cout << " j = " << j << std::endl;
 
 
-      thres.push_back(j+(13-threshcount));
+      thres.push_back(aluthick[j]);
       ethres.push_back(.0);
 
-      effi_reader( run_2_150[j], 2.0, j ); 
-      effi_reader( run_3_150[j], 3.0, j );
-      effi_reader( run_4_150[j], 4.0, j );
-      effi_reader( run_5_150[j], 5.0, j );
-      effi_reader( run_6_150[j], 6.0, j );
-
+      effi_reader( run_1_20[j], 1.0, j );
       effi_reader( run_2_20[j], 2.0, j );
       effi_reader( run_3_20[j], 3.0, j );
       effi_reader( run_4_20[j], 4.0, j );
       effi_reader( run_5_20[j], 5.0, j );
-      effi_reader( run_6_20[j], 6.0, j );
 
     }
 
@@ -2276,7 +1712,7 @@ int main()
     TGraphErrors *h_effi_E_150[5];
     for(int i = 0; i < 5; i++) {
       //std:: cout << i << std::endl;
-      h_effi_E_150[i]= new TGraphErrors(threshcount);
+      h_effi_E_150[i]= new TGraphErrors(alucount);
       h_effi_E_150[i]->SetMarkerSize(2.5);
       h_effi_E_150[i]->SetName("Graph");
       h_effi_E_150[i]->SetTitle("");
@@ -2338,7 +1774,7 @@ int main()
     TGraphErrors *h_effi_E_20[5];
     for(int i = 0; i < 5; i++) {
       std:: cout << i << std::endl;
-      h_effi_E_20[i]= new TGraphErrors(threshcount);
+      h_effi_E_20[i]= new TGraphErrors(alucount);
       h_effi_E_20[i]->SetMarkerSize(2.5);
       h_effi_E_20[i]->SetName("Graph");
       h_effi_E_20[i]->SetTitle("");
@@ -2662,210 +2098,6 @@ int main()
   }
 
 
-  if (runmode == 15)
-  {
-    std::cout << " This calculates the systematic uncertainties of the pointing resolution for certain assumed input uncerts." << std::endl;
-
-    double ebeam = 6.;
-    double kappa = .75;
-    // Create telescope
-    //
-    telescopebuild = "AnaTel_wide.geom";
-    AnaTel *tscope150 = new AnaTel(telescopebuild.c_str(), ebeam);
-    double sigma_int = 3.24e-3;
-    tscope150->SetResolution(sigma_int);
-    tscope150->SetKappa(kappa);
-    std::cout << " - Tscope created, dz = 150 mm, NO DUT" << std::endl;
-
-    int plane = 3;
-    int Biased = 1;
-
-
-    double sig_0 = tscope150->GetPointingResGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam*0.95);
-    double sig_E_minus = tscope150->GetPointingResGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam*1.05);
-    double sig_E_plus = tscope150->GetPointingResGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam);
-
-    tscope150->SetKappa(0.9*kappa);
-    double sig_kappa_minus = tscope150->GetPointingResGBL(plane,Biased);
-
-    tscope150->SetKappa(1.1*kappa);
-    double sig_kappa_plus = tscope150->GetPointingResGBL(plane,Biased);
-
-    tscope150->SetKappa(kappa);
-
-    std::cout << " sys. uncerts in E: sig_0 = " << sig_0*1e3 << " + (" << (sig_E_plus - sig_0)*1e3 << ") - (" << (sig_E_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " sig_E_plus = " << (sig_E_plus)*1e3 << "   sig_E_minus = " << sig_E_minus*1e3 << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_E_plus - sig_0) + fabs(sig_E_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    std::cout << " sys. uncerts in KAPPA: sig_0 = " << sig_0*1e3 << " + (" << (sig_kappa_plus - sig_0)*1e3 << ") - (" << fabs(sig_kappa_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " sig_kappa_plus = " << (sig_kappa_plus)*1e3 << "   sig_kappa_minus = " << sig_kappa_minus*1e3 << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_kappa_plus - sig_0) + fabs(sig_kappa_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    telescopebuild = "AnaTel_narrow.geom";
-    AnaTel *tscope20 = new AnaTel(telescopebuild.c_str(), ebeam);
-    tscope20->SetResolution(sigma_int);
-    tscope20->SetKappa(kappa);
-    std::cout << "\n - Tscope created, dz = 20 mm, NO DUT" << std::endl;
-
-    sig_0 = tscope20->GetPointingResGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam*0.95);
-    sig_E_minus = tscope20->GetPointingResGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam*1.05);
-    sig_E_plus = tscope20->GetPointingResGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam);
-
-    tscope20->SetKappa(0.9*kappa);
-    sig_kappa_minus = tscope20->GetPointingResGBL(plane,Biased);
-
-    tscope20->SetKappa(1.1);
-    sig_kappa_plus = tscope20->GetPointingResGBL(plane,Biased);
-
-    tscope20->SetKappa(1.0);
-
-    std::cout << " sys. uncerts in E: sig_0 = " << sig_0*1e3 << " + (" << (sig_E_plus - sig_0)*1e3 << ") - (" << fabs(sig_E_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_E_plus - sig_0) + fabs(sig_E_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    std::cout << " sys. uncerts in KAPPA: sig_0 = " << sig_0*1e3 << " + (" << (sig_kappa_plus - sig_0)*1e3 << ") - (" << (sig_kappa_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_kappa_plus - sig_0) + fabs(sig_kappa_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-  }
-
-
-  if (runmode == 14)
-  {
-    std::cout << " This calculates the systematic uncertainties for the estiamted residual width for certain assumed input uncerts." << std::endl;
-
-    double ebeam = 6.;
-    // Create telescope
-    //
-    telescopebuild = "AnaTel_wide.geom";
-    AnaTel *tscope150 = new AnaTel(telescopebuild.c_str(), ebeam);
-    double sigma_int = 3.24e-3;
-    tscope150->SetResolution(sigma_int);
-    std::cout << " - Tscope created, dz = 150 mm, NO DUT" << std::endl;
-
-    int plane = 0;
-    int Biased = 1;
-
-
-    double sig_0 = tscope150->GetWidthGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam*0.95);
-    double sig_E_minus = tscope150->GetWidthGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam*1.05);
-    double sig_E_plus = tscope150->GetWidthGBL(plane,Biased);
-
-    tscope150->SetBeam(ebeam);
-
-    tscope150->SetKappa(0.9);
-    double sig_kappa_minus = tscope150->GetWidthGBL(plane,Biased);
-
-    tscope150->SetKappa(1.1);
-    double sig_kappa_plus = tscope150->GetWidthGBL(plane,Biased);
-
-    tscope150->SetKappa(1.0);
-
-    std::cout << " sys. uncerts in E: sig_0 = " << sig_0*1e3 << " + (" << (sig_E_plus - sig_0)*1e3 << ") - (" << (sig_E_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_E_plus - sig_0) + fabs(sig_E_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    std::cout << " sys. uncerts in KAPPA: sig_0 = " << sig_0*1e3 << " + (" << (sig_kappa_plus - sig_0)*1e3 << ") - (" << fabs(sig_kappa_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_kappa_plus - sig_0) + fabs(sig_kappa_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    telescopebuild = "AnaTel_narrow.geom";
-    AnaTel *tscope20 = new AnaTel(telescopebuild.c_str(), ebeam);
-    tscope20->SetResolution(sigma_int);
-    std::cout << "\n - Tscope created, dz = 20 mm, NO DUT" << std::endl;
-
-    sig_0 = tscope20->GetWidthGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam*0.95);
-    sig_E_minus = tscope20->GetWidthGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam*1.05);
-    sig_E_plus = tscope20->GetWidthGBL(plane,Biased);
-
-    tscope20->SetBeam(ebeam);
-
-    tscope20->SetKappa(0.9);
-    sig_kappa_minus = tscope20->GetWidthGBL(plane,Biased);
-
-    tscope20->SetKappa(1.1);
-    sig_kappa_plus = tscope20->GetWidthGBL(plane,Biased);
-
-    tscope20->SetKappa(1.0);
-
-    std::cout << " sys. uncerts in E: sig_0 = " << sig_0*1e3 << " + (" << (sig_E_plus - sig_0)*1e3 << ") - (" << fabs(sig_E_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_E_plus - sig_0) + fabs(sig_E_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-
-    std::cout << " sys. uncerts in KAPPA: sig_0 = " << sig_0*1e3 << " + (" << (sig_kappa_plus - sig_0)*1e3 << ") - (" << (sig_kappa_minus - sig_0)*1e3 << ")" << std::endl;
-    std::cout << " rel sys. uncerts: " << (fabs(sig_kappa_plus - sig_0) + fabs(sig_kappa_minus - sig_0))/2. / sig_0*100 << " %" << std::endl;
-  }
-
-  if (runmode == 13)
-  {
-    std::cout << " This plots the estimated residual width as a function of the assumed intrinsic resolution." << std::endl;
-
-    double ebeam = 3.;
-    // Create telescope
-    //
-    telescopebuild = "AnaTel_wide.geom";
-    AnaTel *tscope150 = new AnaTel(telescopebuild.c_str(), ebeam);
-    double sigma_int = 3.24e-3;
-    tscope150->SetResolution(sigma_int);
-    std::cout << " - Tscope created, dz = 150 mm, NO DUT" << std::endl;
-
-    std::cout << " --- BIASED RESIDUALS ---" << std::endl;
-    std::cout << "     Pointing reso estimate at plane 0: " << tscope150->GetPointingResGBL(0,1) 
-      << "   Residual estimate = "              << tscope150->GetWidthGBL(0,1) << std::endl;
-
-    // keep kappa fixed, vary sigma int
-    const int steps_sigma = 41;
-    double step_width_sigma = 0.1e-3;
-    double start_sigma = 1.0e-3;
-    std::vector<double> sigmas;
-
-    for(unsigned int ii = 0; ii<steps_sigma; ii++) sigmas.push_back(start_sigma + ii*step_width_sigma);
-
-    //srd::vector<double> rhat_sigma(31);
-
-
-    TGraph* gr_rhat150 = new TGraph(31);
-    gr_rhat150->SetNameTitle("","");
-    double rhat = -1.;
-    for (int ii = 0; ii < steps_sigma; ii++){
-      std::cout << " int res is now " << sigmas.at(ii) << std::endl;
-      tscope150->SetResolution(sigmas.at(ii));
-      rhat = tscope150->GetRhat(2,1);
-      std::cout << " rhat is " << rhat << std::endl;
-      gr_rhat150->SetPoint(ii, sigmas.at(ii)*1e3, rhat*1e3);
-      rhat = -1.;
-    }
-
-    gr_rhat150->GetXaxis()->SetLimits(0., sigmas.back()*1.1*1e3);
-    gr_rhat150->SetMinimum(0.);
-    gr_rhat150->GetXaxis()->SetTitle("intrinsic reso. #sigma_{int} [#mum]");
-    gr_rhat150->GetYaxis()->SetTitle("intrinsic reso. error plane 3 [#mum]"); // i.e. estimated width of biased residual distribution
-
-    gr_rhat150->SetMarkerStyle(20);
-
-    TCanvas *cmg_rhat_150 = new TCanvas("cmg_rhat_150","cmg1_rhat_50",10,10,800,600);
-    cmg_rhat_150->cd();
-
-    gr_rhat150->Draw("apl");
-
-    cmg_rhat_150->Write();
-
-
-  }
 
   if (runmode == 12)
   {
@@ -2879,26 +2111,19 @@ int main()
     std::vector<double> ethres;
     // Get histograms to be checked
     //
-    for (Int_t j=0; j<threshcount; j++)
+    for (Int_t j=0; j<alucount; j++)
     {
       std::cout << " j = " << j << std::endl;
 
 
-      thres.push_back(j+(13-threshcount));
+      thres.push_back(aluthick[j]);
       ethres.push_back(.0);
 
-      CSchecker( run_2_150[j], 2.0, j ); 
-      CSchecker( run_3_150[j], 3.0, j );
-      CSchecker( run_4_150[j], 4.0, j );
-      CSchecker( run_5_150[j], 5.0, j );
-      CSchecker( run_6_150[j], 6.0, j );
-      //CSchecker( run120[j],  120.0, j );
-
+      CSchecker( run_1_20[j], 1.0, j );
       CSchecker( run_2_20[j], 2.0, j );
       CSchecker( run_3_20[j], 3.0, j );
       CSchecker( run_4_20[j], 4.0, j );
       CSchecker( run_5_20[j], 5.0, j );
-      CSchecker( run_6_20[j], 6.0, j );
 
     }
 
@@ -3210,65 +2435,34 @@ int main()
     std::cout << " read pulls and write to file" << std::endl;
     whichfitter = "GBLfitter-CS";
 
-    pulls20.open("pulls20-xx.txt");
-    pulls150.open("pulls150-xx.txt");
+    //pulls20.open("pulls20-xx.txt");
     //pulls20.open("pulls20-12.txt");
-    //pulls150.open("pulls150-12.txt");
 
     telescopebuild = "AnaTel_narrow.geom";
     planedistance = 20;
     for(int j=0;j<nplanes;j++)
       posx[j] = planedistance*j;
 
-    //fitter(118,6.);
-    for( int i : run_6_20) fitter(i,6.0);
     for( int i : run_5_20) fitter(i,5.0);
     for( int i : run_4_20) fitter(i,4.0);
     for( int i : run_3_20) fitter(i,3.0);
     for( int i : run_2_20) fitter(i,2.0);
+    for( int i : run_1_20) fitter(i,1.0);
 
 
-    telescopebuild = "AnaTel_wide.geom";
-    planedistance = 150;
-    for(int j=0;j<nplanes;j++)
-      posx[j] = planedistance*j;
-
-    //fitter(64,6.);
-    for( int i : run_6_150) fitter(i,6.0);
-    for( int i : run_5_150) fitter(i,5.0);
-    for( int i : run_4_150) fitter(i,4.0);
-    for( int i : run_3_150) fitter(i,3.0);
-    for( int i : run_2_150) fitter(i,2.0);
-    //for( int i : run120)    fitter(i,120.0);
-
+ 
 
     //std::cout << "fill tgraphs" << std::endl;
     FillGraph();
 
-    pulls20.close();
-    pulls150.close();
+    //pulls20.close();
 
   }
 
+  // test mode
   if (runmode == 9)
   {
     global_thresh=6;
-
-
-
-    telescopebuild = "AnaTel_wide.geom";
-    planedistance = 150;
-    for(int j=0;j<nplanes;j++)
-      posx[j] = planedistance*j;
-
-    fitter(63,6.);
-    //fitter(73,5.);
-    //fitter(84,4.);
-    //fitter(96,3.);
-    //fitter(106,2.);
-
-    // CERN
-    //fitter(755,120.);
 
 
 
@@ -3295,36 +2489,7 @@ int main()
   if(runmode == 0)
   {
 
-    telescopebuild = "AnaTel_wide.geom";
-    planedistance = 150;
-    for(int j=0;j<nplanes;j++)
-      posx[j] = 150.0*j;
-
-    for(int i=0;i<run_6_150.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_6_150[i], 6.0 );
-    }
-    for(int i=0;i<run_5_150.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_5_150[i], 5.0 );
-    }
-    for(int i=0;i<run_4_150.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_4_150[i], 4.0 );
-    }
-    for(int i=0;i<run_3_150.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_3_150[i], 3.0 );
-    }
-    for(int i=0;i<run_2_150.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_2_150[i], 2.0 );
-    }
+    std::string whichfitter = "GBLKinkEstimator_kappa100";
 
     std::cout << " " << std::endl;
     std::cout << "Thin Geometry" << std::endl;
@@ -3335,186 +2500,57 @@ int main()
     for(int j=0;j<nplanes;j++)
       posx[j] = 20.0*j;
 
-    for(int i=0;i<run_6_20.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run_6_20[i], 6.0 );
-    }
     for(int i=0;i<run_5_20.size();i++)
     {
-      global_thresh = i+3;
       fitter( run_5_20[i], 5.0 );
-    }
-    for(int i=0;i<run_4_20.size();i++)
-    {
-      global_thresh = i+3;
       fitter( run_4_20[i], 4.0 );
-    }
-    for(int i=0;i<run_3_20.size();i++)
-    {
-      global_thresh = i+3;
       fitter( run_3_20[i], 3.0 );
-    }
-    for(int i=0;i<run_2_20.size();i++)
-    {
-      global_thresh = i+3;
       fitter( run_2_20[i], 2.0 );
+      fitter( run_1_20[i], 1.0 );
     }
 
-    telescopebuild = "AnaTel_wide.geom";
-    planedistance = 150;
-    for(int j=0;j<nplanes;j++)
-      posx[j] = 150.0*j;
-
-    for(int i=0;i<run120.size();i++)
-    {
-      global_thresh = i+3;
-      fitter( run120[i], 120.0 );
-    }
 
     std::cout << "fill tgraphs" << std::endl;
     FillGraph();
 
   }
 
-  // Run according to clustersize, this should be at one threshold -> to be done -> Geometry needs implementing
-  if(runmode == 1)
-  {
-    std::cout << "Running over clustersize" << std::endl;
-    // Smallest clustersize is 1, largest is clustercount -1
-    const Int_t clustercount = 5;
-    Double_t clusterresult[clustercount];
-    Double_t clustererror[clustercount];
-    Double_t x[clustercount];
-    for (Int_t j=1;j<clustercount;j++)
-    {
-      x[j] = j+0.0;
-      std::ostringstream convert;
-      convert << j;
-      submask = convert.str();
 
-      // this needs to be done:
-      for(int i=0;i<run_3_150.size();i++)
-	fitter( run_3_150[i], 3 );
-      clusterresult[j] = m26_resolution*1000.0;
-      clustererror[j] = m26_res_error*1000.0;
-    }
-
-    // As a comparison: put "clustersize = 0" as the normal uncut run.
-    submask = "";
-    for(int i=0;i<run_3_150.size();i++)
-      fitter( run_3_150[i], 3 );
-    clusterresult[0] = m26_resolution*1000.0;
-    clustererror[0] = m26_res_error*1000.0;
-
-    TCanvas *c1 = new TCanvas("c1","Resolution vs. Clustersize",10,10,800,600);
-    c1->SetFillColor(0);
-    c1->SetGrid();
-    TGraph *gr = new TGraph(clustercount,x,clusterresult);
-    gr->SetLineColor(kBlack);
-    gr->SetLineWidth(2);
-    gr->SetMarkerColor(kRed);
-    gr->SetMarkerStyle(21);
-    gr->SetTitle("Resolution vs. Clustersize");
-    gr->GetXaxis()->SetTitle("Clustersize");
-    gr->GetYaxis()->SetTitle("#sigma_{M26} in #mum");
-    gr->Draw("ACP");
-    c1->Update();
-    //   c1->GetFrame()->SetFillColor(0);
-    //    c1->GetFrame()->SetBorderSize(0);
-    c1->Modified();
-    c1->Print("../bin/pics/clustersize_somename.eps");
-    _outputFile->cd();
-    c1->Write();
-    c1->Close();
-  }
-
-  // Run over thresholds
+  // Run over alu thicknesses
   if(runmode == 2)
   {
-    std::cout << "Threshold mode" << std::endl;
-    Double_t threshresult_2_150[threshcount];
-    Double_t threshresult_3_150[threshcount];
-    Double_t threshresult_4_150[threshcount];
-    Double_t threshresult_5_150[threshcount];
-    Double_t threshresult_6_150[threshcount];
-    Double_t threshresult_2_20[threshcount];
-    Double_t threshresult_3_20[threshcount];
-    Double_t threshresult_4_20[threshcount];
-    Double_t threshresult_5_20[threshcount];
-    Double_t threshresult_6_20[threshcount];
-    Double_t threshresult120[threshcount] = {0.};
+    std::cout << "Thickness mode" << std::endl;
+    Double_t threshresult_1_20[alucount];
+    Double_t threshresult_2_20[alucount];
+    Double_t threshresult_3_20[alucount];
+    Double_t threshresult_4_20[alucount];
+    Double_t threshresult_5_20[alucount];
+    Double_t threshresult120[alucount] = {0.};
 
 
-    Double_t thresherror_2_150[threshcount];
-    Double_t thresherror_3_150[threshcount];
-    Double_t thresherror_4_150[threshcount];
-    Double_t thresherror_5_150[threshcount];
-    Double_t thresherror_6_150[threshcount];
-    Double_t thresherror_2_20[threshcount];
-    Double_t thresherror_3_20[threshcount];
-    Double_t thresherror_4_20[threshcount];
-    Double_t thresherror_5_20[threshcount];
-    Double_t thresherror_6_20[threshcount];
-    Double_t thresherror120[threshcount];
+    Double_t thresherror_1_20[alucount];
+    Double_t thresherror_2_20[alucount];
+    Double_t thresherror_3_20[alucount];
+    Double_t thresherror_4_20[alucount];
+    Double_t thresherror_5_20[alucount];
 
 
-    Double_t x[threshcount];
-    Double_t xerrorthresh[threshcount];
-    for (Int_t j=0; j<threshcount; j++)
+    Double_t x[alucount];
+    Double_t xerrorthresh[alucount];
+    for (Int_t j=0; j<alucount; j++)
     {
       std::cout << " j = " << j << std::endl;
 
-      telescopebuild = "AnaTel_wide.geom";
-      planedistance = 150;
-      for(int jj=0;jj<nplanes;jj++)
-	posx[jj] = planedistance*jj;
-
-
-      x[j] = j+(3+(10-threshcount));
-      global_thresh = x[j];
-      std::cout << " threhold = " << global_thresh << std::endl;
-      xerrorthresh[j] = 0.0;
-      submask = "";
-
-
-      fitter( run_2_150[j], 2.0 ); 
-      threshresult_2_150[j] = m26_resolution*1000.0;
-      thresherror_2_150[j] = global_plot_error; // FIXME need correct error estimate here
-
-      fitter( run_3_150[j], 3.0 );
-      threshresult_3_150[j] = m26_resolution*1000.0;
-      thresherror_3_150[j] = global_plot_error;
-
-      fitter( run_4_150[j], 4.0 );
-      threshresult_4_150[j] = m26_resolution*1000.0;
-      thresherror_4_150[j] = global_plot_error;
-
-      fitter( run_5_150[j], 5.0 );
-      threshresult_5_150[j] = m26_resolution*1000.0;
-      thresherror_5_150[j] = global_plot_error;
-
-      fitter( run_6_150[j], 6.0 );
-      threshresult_6_150[j] = m26_resolution*1000.0;
-      thresherror_6_150[j] = global_plot_error;
-
-
-      //if( run120[j] == 752 || run120[j] == 753)
-      //{
-      //  threshresult120[j] = 1.0;
-      //  thresherror120[j] = 0.0;
-      //} else {
-      fitter( run120[j], 120.0 );
-      threshresult120[j] = m26_resolution*1000.0;
-      thresherror120[j] = global_plot_error;
-      //}
-
+ 
       telescopebuild = "AnaTel_narrow.geom";
       planedistance = 20;
       for(int jj=0;jj<nplanes;jj++)
 	posx[jj] = planedistance*jj;
 
 
+      fitter( run_1_20[j], 1.0 );
+      threshresult_1_20[j] = m26_resolution*1000.0;
+      thresherror_1_20[j] = global_plot_error;
 
       fitter( run_2_20[j], 2.0 );
       threshresult_2_20[j] = m26_resolution*1000.0;
@@ -3532,28 +2568,17 @@ int main()
       threshresult_5_20[j] = m26_resolution*1000.0;
       thresherror_5_20[j] = global_plot_error;
 
-      fitter( run_6_20[j], 6.0 );
-      threshresult_6_20[j] = m26_resolution*1000.0;
-      thresherror_6_20[j] = global_plot_error;
-
 
     }
 
     std::cout << "fill tgraphs" << std::endl;
     FillGraph();
 
-    TGraphErrors *gr2_150 = new TGraphErrors((threshcount),x,threshresult_2_150,xerrorthresh,thresherror_2_150);
-    TGraphErrors *gr3_150 = new TGraphErrors((threshcount),x,threshresult_3_150,xerrorthresh,thresherror_3_150);
-    TGraphErrors *gr4_150 = new TGraphErrors((threshcount),x,threshresult_4_150,xerrorthresh,thresherror_4_150);
-    TGraphErrors *gr5_150 = new TGraphErrors((threshcount),x,threshresult_5_150,xerrorthresh,thresherror_5_150);
-    TGraphErrors *gr6_150 = new TGraphErrors((threshcount),x,threshresult_6_150,xerrorthresh,thresherror_6_150);
-    TGraphErrors *gr120   = new TGraphErrors((threshcount),x,threshresult120,xerrorthresh,thresherror120);
-
-    TGraphErrors *gr2_20  = new TGraphErrors((threshcount),x,threshresult_2_20,xerrorthresh,thresherror_2_20);
-    TGraphErrors *gr3_20  = new TGraphErrors((threshcount),x,threshresult_3_20,xerrorthresh,thresherror_3_20);
-    TGraphErrors *gr4_20  = new TGraphErrors((threshcount),x,threshresult_4_20,xerrorthresh,thresherror_4_20);
-    TGraphErrors *gr5_20  = new TGraphErrors((threshcount),x,threshresult_5_20,xerrorthresh,thresherror_5_20);
-    TGraphErrors *gr6_20  = new TGraphErrors((threshcount),x,threshresult_6_20,xerrorthresh,thresherror_6_20);
+    TGraphErrors *gr1_20  = new TGraphErrors((alucount),x,threshresult_1_20,xerrorthresh,thresherror_1_20);
+    TGraphErrors *gr2_20  = new TGraphErrors((alucount),x,threshresult_2_20,xerrorthresh,thresherror_2_20);
+    TGraphErrors *gr3_20  = new TGraphErrors((alucount),x,threshresult_3_20,xerrorthresh,thresherror_3_20);
+    TGraphErrors *gr4_20  = new TGraphErrors((alucount),x,threshresult_4_20,xerrorthresh,thresherror_4_20);
+    TGraphErrors *gr5_20  = new TGraphErrors((alucount),x,threshresult_5_20,xerrorthresh,thresherror_5_20);
 
     TCanvas *threshold = new TCanvas("threshold","threshold",10,10,800,600);
     threshold->cd();
@@ -3566,25 +2591,9 @@ int main()
     //gPad->SetGridx();
     //gPad->SetGridy();
 
-    gr2_150->SetMarkerStyle(20);
-    gr2_150->SetMarkerColor(kBlack);
-    gr2_150->SetMarkerSize(3);
-    gr3_150->SetMarkerStyle(21);
-    gr3_150->SetMarkerColor(kGreen);
-    gr3_150->SetMarkerSize(3);
-    gr4_150->SetMarkerStyle(22);
-    gr4_150->SetMarkerColor(kRed);
-    gr4_150->SetMarkerSize(3);
-    gr5_150->SetMarkerStyle(23);
-    gr5_150->SetMarkerColor(kBlue);
-    gr5_150->SetMarkerSize(3);
-    gr6_150->SetMarkerStyle(29);
-    gr6_150->SetMarkerColor(kOrange);
-    gr6_150->SetMarkerSize(3);
-    gr120->SetMarkerStyle(3);
-    gr120->SetMarkerColor(kMagenta);
-    gr120->SetMarkerSize(3);
-
+    gr1_20->SetMarkerStyle(28);
+    gr1_20->SetMarkerColor(kOrange);
+    gr1_20->SetMarkerSize(3);
     gr2_20->SetMarkerStyle(24);
     gr2_20->SetMarkerColor(kBlack);
     gr2_20->SetMarkerSize(3);
@@ -3597,23 +2606,14 @@ int main()
     gr5_20->SetMarkerStyle(27);
     gr5_20->SetMarkerColor(kBlue);
     gr5_20->SetMarkerSize(3);
-    gr6_20->SetMarkerStyle(28);
-    gr6_20->SetMarkerColor(kOrange);
-    gr6_20->SetMarkerSize(3);
 
     TMultiGraph* mg = new TMultiGraph();
 
-    mg->Add(gr2_150,"p");
-    mg->Add(gr3_150,"p");
-    mg->Add(gr4_150,"p");
-    mg->Add(gr5_150,"p");
-    mg->Add(gr6_150,"p");
-    mg->Add(gr120,"p");
+    mg->Add(gr1_20,"p");
     mg->Add(gr2_20,"p");
     mg->Add(gr3_20,"p");
     mg->Add(gr4_20,"p");
     mg->Add(gr5_20,"p");
-    mg->Add(gr6_20,"p");
 
     mg->Draw("apl");
     mg->SetMinimum(0);
@@ -3627,18 +2627,12 @@ int main()
     leg->SetFillColor(0);
     leg->SetFillStyle(0);
     leg->SetHeader("Energy:");
-    leg->AddEntry(gr2_150,"p = 2 GeV, #Delta_{z} = 150 mm","p");
-    leg->AddEntry(gr3_150,"p = 3 GeV, #Delta_{z} = 150 mm","p");
-    leg->AddEntry(gr4_150,"p = 4 GeV, #Delta_{z} = 150 mm","p");
-    leg->AddEntry(gr5_150,"p = 5 GeV, #Delta_{z} = 150 mm","p");
-    leg->AddEntry(gr6_150,"p = 6 GeV, #Delta_{z} = 150 mm","p");
-    leg->AddEntry(gr120,"p = 120 GeV, #Delta_{z} = 150 mm","p");
 
+    leg->AddEntry(gr1_20,"p = 1 GeV, #Delta_{z} = 20 mm","p");
     leg->AddEntry(gr2_20,"p = 2 GeV, #Delta_{z} = 20 mm","p");
     leg->AddEntry(gr3_20,"p = 3 GeV, #Delta_{z} = 20 mm","p");
     leg->AddEntry(gr4_20,"p = 4 GeV, #Delta_{z} = 20 mm","p");
     leg->AddEntry(gr5_20,"p = 5 GeV, #Delta_{z} = 20 mm","p");
-    leg->AddEntry(gr6_20,"p = 6 GeV, #Delta_{z} = 20 mm","p");
 
     leg->Draw();
 
@@ -3648,281 +2642,6 @@ int main()
     threshold->Write();
     threshold->Close();
   }
-
-  // Run over thresholds (x) and clustersize (y), res is z, geometry needs reset and thin implementing
-  if(runmode == 3)
-  {
-    std::cout << "Threshold and clustersize mode" << std::endl;
-    //const Int_t threshcount = 12;
-    const Int_t clustercount = 5;
-    Double_t threshresult2[threshcount][clustercount];
-    Double_t threshresult3[threshcount][clustercount];
-    Double_t threshresult4[threshcount][clustercount];
-    Double_t threshresult5[threshcount][clustercount];
-    Double_t threshresulttotal[threshcount][clustercount];
-    Double_t thresherror2[threshcount][clustercount];
-    Double_t thresherror3[threshcount][clustercount];
-    Double_t thresherror4[threshcount][clustercount];
-    Double_t thresherror5[threshcount][clustercount];
-    Double_t thresherrortotal[threshcount][clustercount];
-    Double_t x[threshcount][clustercount];
-    Double_t xerrorthresh[threshcount][clustercount];
-    Double_t y[threshcount][clustercount];
-    Double_t yerrorcluster[threshcount][clustercount];
-
-    for (Int_t i=0;i<clustercount;i++)
-    {
-      for (Int_t j=0;j<(threshcount-2);j++)
-      {
-	std::cout << "I am now at clustersize " << i << " and threshold " << j+3 << " !" << std::endl;
-	y[j][i] = i;
-	x[j][i] = j+3;
-	global_thresh = x[j][i];
-	xerrorthresh[j][i] = 0.0;
-	std::ostringstream convert;
-	convert << i;
-	submask = convert.str();
-	if (i == 0)
-	  submask = "";
-
-	fitter( run_4_150[j], 4.4 );
-	threshresult4[j][i] = m26_resolution*1000.0;
-	thresherror4[j][i] = m26_res_error*1000.0;
-
-      }
-    }
-
-
-    TCanvas *c_thr_vs_clu_4 = new TCanvas("thr_vs_clu_4", "Threshold vs. Clustersize", 600, 400);
-    c_thr_vs_clu_4->cd();
-    TH2D *hist2D_thr_vs_clu_4 = new TH2D("hist2D_thr_vs_clu_4", "Histo_thr_vs_clu_4", 10, 3., 13., 5, 0., 5.);
-    for(Int_t i=0;i<clustercount;i++)
-    {
-      for(Int_t j=0;j<(threshcount-2);j++)
-      {
-	hist2D_thr_vs_clu_4->Fill((j+3),i,threshresult4[j][i]);
-      }
-    }
-    hist2D_thr_vs_clu_4->GetXaxis()->SetTitle("Threshold");
-    hist2D_thr_vs_clu_4->GetYaxis()->SetTitle("Clustersize");
-    hist2D_thr_vs_clu_4->GetZaxis()->SetTitle("#sigma_{M26}");
-    hist2D_thr_vs_clu_4->Draw("LEGO2");
-    c_thr_vs_clu_4->Print("pics/thr_vs_clu_4.eps");
-    c_thr_vs_clu_4->Write();
-
-  }
-
-
-  // Effi is now done in runmode 17
-
-
-
-
-  // FIXME update
-  // plot clustersize
-  if(runmode == 6)
-  {
-
-    // Results go in here
-    Double_t threshcluster2[threshcount];
-    Double_t threshcluster3[threshcount];
-    Double_t threshcluster4[threshcount];
-    Double_t threshcluster5[threshcount];
-    Double_t threshclusterthreshcouunt0[threshcount];
-    Double_t threshcluster2_error[threshcount];
-    Double_t threshcluster3_error[threshcount];
-    Double_t threshcluster4_error[threshcount];
-    Double_t threshcluster5_error[threshcount];
-    Double_t threshcluster120[threshcount];
-    Double_t threshcluster120_error[threshcount];
-    Double_t thin_threshcluster2[threshcount];
-    Double_t thin_threshcluster3[threshcount];
-    Double_t thin_threshcluster5[threshcount];
-    Double_t thin_threshcluster2_error[threshcount];
-    Double_t thin_threshcluster3_error[threshcount];
-    Double_t thin_threshcluster5_error[threshcount];
-    Double_t x[threshcount];
-    Double_t xerror[threshcount] = {0.0};
-
-    std::cout << " " << std::endl;
-    std::cout << "Mode 6" << std::endl;
-    std::cout << " " << std::endl;
-    std::cout << "Running over all runs - cluster size" << std::endl;
-    std::cout << " " << std::endl;
-    std::cout << "Wide Geometry" << std::endl;
-    std::cout << " " << std::endl;
-
-    telescopebuild = "AnaTel_wide.geom";
-    planedistance = 150;
-    for(int j=0;j<nplanes;j++)
-      posx[j] = 150.0*j;
-
-    for(int i=0;i<run_2_150.size();i++)
-    {
-      getclusize( run_2_150[i] );
-      x[i] = i+3;
-      threshcluster2[i] = avgclustersize;
-      threshcluster2_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run_3_150.size();i++)
-    {
-      getclusize( run_3_150[i] );
-      x[i] = i+3;
-      threshcluster3[i] = avgclustersize;
-      threshcluster3_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run_4_150.size();i++)
-    {
-      getclusize( run_4_150[i] );
-      x[i] = i+3;
-      threshcluster4[i] = avgclustersize;
-      threshcluster4_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run_5_150.size();i++)
-    {
-      getclusize( run_5_150[i] );
-      x[i] = i+3;
-      threshcluster5[i] = avgclustersize;
-      threshcluster5_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run120.size();i++)
-    {
-      getclusize( run120[i] );
-      x[i] = i+3;
-      threshcluster120[i] = avgclustersize;
-      threshcluster120_error[i] = avgclustersize_error;
-    }
-
-    std::cout << " " << std::endl;
-    std::cout << "Thin Geometry" << std::endl;
-    std::cout << " " << std::endl;
-
-    telescopebuild = "AnaTel_narrow.geom";
-    planedistance = 20;
-
-    for(int j=0;j<nplanes;j++)
-      posx[j] = 20.0*j;
-
-    for(int i=0;i<run_2_20.size();i++)
-    {
-      getclusize( run_2_20[i] );
-      x[i] = i+3;
-      thin_threshcluster2[i] = avgclustersize;
-      thin_threshcluster2_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run_3_20.size();i++)
-    {
-      getclusize( run_3_20[i] );
-      x[i] = i+3;
-      thin_threshcluster3[i] = avgclustersize;
-      thin_threshcluster3_error[i] = avgclustersize_error;
-    }
-
-    for(int i=0;i<run_5_20.size();i++)
-    {
-      getclusize( run_5_20[i] );
-      x[i] = i+3;
-      thin_threshcluster5[i] = avgclustersize;
-      thin_threshcluster5_error[i] = avgclustersize_error;
-    }
-
-    // Create graphs with the information
-    TGraphErrors *gr2n = new TGraphErrors(10,x,threshcluster2,xerror,threshcluster2_error);
-    TGraphErrors *gr3n = new TGraphErrors(10,x,threshcluster3,xerror,threshcluster3_error);
-    TGraphErrors *gr4n = new TGraphErrors(10,x,threshcluster4,xerror,threshcluster4_error);
-    TGraphErrors *gr5n = new TGraphErrors(10,x,threshcluster5,xerror,threshcluster5_error);
-    TGraphErrors *gr120n = new TGraphErrors(10,x,threshcluster120,xerror,threshcluster120_error);
-
-    TGraphErrors *gr2nth = new TGraphErrors(10,x,thin_threshcluster2,xerror,thin_threshcluster2_error);
-    TGraphErrors *gr3nth = new TGraphErrors(10,x,thin_threshcluster3,xerror,thin_threshcluster3_error);
-    TGraphErrors *gr5nth = new TGraphErrors(10,x,thin_threshcluster5,xerror,thin_threshcluster5_error);
-
-    // Let's plot this
-    TH1D *h_axis = new TH1D("th_axis","th_axis",1, 2.0, 13.0);
-    TCanvas *threshold = new TCanvas("threshold","threshold",10,10,800,600);
-    gStyle->SetPadBorderMode(0);
-    gStyle->SetOptStat(0);
-    threshold->SetFillColor(0);
-    threshold->Divide(1,1);
-    threshold->cd(1);
-    gStyle->SetErrorX(0);
-    gPad->SetLogx(0);
-    gPad->SetLogy(0);
-
-    // Set apperance
-    gr2n->SetMarkerStyle(22);
-    gr2n->SetMarkerColor(kRed);
-    gr2n->SetMarkerSize(2);
-    gr3n->SetMarkerStyle(22);
-    gr3n->SetMarkerColor(kBlue);
-    gr3n->SetMarkerSize(2);
-    gr4n->SetMarkerStyle(22);
-    gr4n->SetMarkerColor(kGreen);
-    gr4n->SetMarkerSize(2);
-    gr5n->SetMarkerStyle(22);
-    gr5n->SetMarkerColor(kBlack);
-    gr5n->SetMarkerSize(2);
-    gr120n->SetMarkerStyle(22);
-    gr120n->SetMarkerColor(kOrange);
-    gr120n->SetMarkerSize(2);
-
-    gr2nth->SetMarkerStyle(34);
-    gr2nth->SetMarkerColor(kRed);
-    gr2nth->SetMarkerSize(2);
-    gr3nth->SetMarkerStyle(34);
-    gr3nth->SetMarkerColor(kBlue);
-    gr3nth->SetMarkerSize(2);
-    gr5nth->SetMarkerStyle(34);
-    gr5nth->SetMarkerColor(kBlack);
-    gr5nth->SetMarkerSize(2);
-
-    //histo_cfg(h_axis, "Threshold (s/n)","N","");
-    h_axis->SetMinimum(0.0);
-    h_axis->SetMaximum(3.0);
-    h_axis->Draw("hist");
-
-    gr2n->Draw("P");
-    gr3n->Draw("P");
-    gr4n->Draw("P");
-    gr5n->Draw("P");
-    gr120n->Draw("P");
-
-    gr2nth->Draw("P");
-    gr3nth->Draw("P");
-    gr5nth->Draw("P");
-
-    // The legend
-    TLegend *leg = new TLegend(0.59,0.55,0.90,0.85);
-    leg->SetBorderSize(0);
-    leg->SetFillColor(0);
-    leg->SetFillStyle(0);
-    leg->SetHeader("Performance:");
-
-    leg->AddEntry(gr2n,"2 GeV avg. cluster size","p");
-    leg->AddEntry(gr3n,"3 GeV avg. cluster size","p");
-    leg->AddEntry(gr4n,"4.4 GeV avg. cluster size","p");
-    leg->AddEntry(gr5n,"5 GeV avg. cluster size","p");
-    leg->AddEntry(gr120n,"120 GeV avg. cluster size","p");
-
-    leg->AddEntry(gr2nth,"2 GeV avg. cluster size 20mm","p");
-    leg->AddEntry(gr3nth,"3 GeV avg. cluster size 20mm","p");
-    leg->AddEntry(gr5nth,"5 GeV avg. cluster size 20mm","p");
-
-    leg->Draw();
-
-    // Output
-    threshold->Print("pics/clusize.eps");
-    _outputFile->cd();
-    threshold->Write();
-    threshold->Close();
-
-  }
-
 
   _outputFile->Close();
 
