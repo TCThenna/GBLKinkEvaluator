@@ -1529,7 +1529,7 @@ int main()
 	std::vector<double> reso_n;
 	dz_DUT = 1;
 	for( int j = 0;  j < nsteps; j++){
-	  if(i==3) std::cout << "j = " << j < " :   ";
+	  if(i==3) std::cout << "j = " << j << " :   ";
 
 
 	  AnaTel *tscope = new AnaTel(telescopebuild.c_str(), p);
