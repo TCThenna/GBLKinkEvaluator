@@ -8,16 +8,17 @@
 
 MESSAGE(STATUS "Looking for GBL...")
 
+
 FIND_PATH(GBL_INCLUDE_DIR GblPoint.h
-  HINTS "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/include"
+  HINTS "${GBLPATH}/include" "$ENV{GBLPATH}/include" "${GBLPATH}/cpp/include" "$ENV{GBLPATH}/cpp/include" "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/include"
 )
 
 FIND_PATH(GBL_LIBRARY_DIR libGBL.so
-  HINTS "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/lib"
+  HINTS "${GBLPATH}/lib" "${GBLPATH}/cpp/lib" "$ENV{GBLPATH}/lib" "$ENV{GBLPATH}/cpp/lib" "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/lib"
 )
 
 FIND_LIBRARY(GBL_LIBRARY NAMES libGBL.so
-  HINTS "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/lib"
+  HINTS "${GBLPATH}/lib" "${GBLPATH}/cpp/lib" "$ENV{GBLPATH}/lib" "$ENV{GBLPATH}/cpp/lib" "${PROJECT_SOURCE_DIR}/../../../../../../GBL/V01-16-03/lib"
 )
 
 set(GBL_LIBRARIES ${GBL_LIBRARY})
