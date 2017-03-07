@@ -5,7 +5,7 @@
  *                                                                                        *
  ******************************************************************************************/
 
-
+	
 #include "AnaTel.h"
 #include "TF1.h"
 #include <iostream>
@@ -19,6 +19,7 @@
 #include <cmath>
 #include <iomanip>
 #include <stdio.h>
+#include <stdlib.h>
 #include <utility>
 #include <map>
 #include <sstream>
@@ -1112,7 +1113,7 @@ void FillGraph(){
 }
 
 // Let's go!
-int main()
+int main(int argc, char *argv[0])
 {
 
   //gROOT->SetBatch();
@@ -1120,8 +1121,20 @@ int main()
   //gSystem->Load("lib/libGBL.so");
   //gSystem->AddIncludePath("include/");
   gROOT->SetStyle("Plain");
+ 
+  if( argc == 2 ) {
+    printf("Data path is %s\n", argv[1]);
+    inputDir20 = argv[1];
+  }
+  else if( argc > 2 ) {
+    printf("Too many arguments supplied.\n");
+    return 1;
+  }
+  else {
+    printf("Default path:\n");
+  	inputDir20  = "../../analysis-20mm/output/histograms/";
+  }
 
-  inputDir20  = "../../analysis-20mm/output/histograms/";
   inputFile = "run00";
 
   _outputFile = new TFile("../bin/output.root", "RECREATE");
