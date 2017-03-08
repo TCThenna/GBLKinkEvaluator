@@ -291,11 +291,12 @@ void CSchecker(Int_t runnumber, Double_t ebeam, Int_t j)
   filehelper(help, runnumber);
 
   std::cout << "Reading file: " << help << std::endl;
-  TFile *tfile = new TFile(help.c_str());
-  if(tfile == NULL) {
-    std::cout << "   --- File does not exist, return! ---   " << std::endl;
+  if(gSystem->AccessPathName(help.c_str(),kFileExists)){
+    std::cout << "   --- File does not exist, skipping run! ---   " << std::endl;
     return;
   } else std::cout << "   --- File found ---   " << std::endl;
+    
+  TFile *tfile = new TFile(help.c_str());
 
   // canvas
   TCanvas* canvas;
@@ -350,13 +351,14 @@ void effi_reader(Int_t runnumber, Double_t ebeam, Int_t j)
   filehelper(help, runnumber);
 
   std::cout << "Reading file: " << help << std::endl;
-  TFile *tfile = new TFile(help.c_str());
-  if(tfile == NULL) {
-    std::cout << "   --- File does not exist, return! ---   " << std::endl;
+  if(gSystem->AccessPathName(help.c_str(),kFileExists)){
+    std::cout << "   --- File does not exist, skipping run! ---   " << std::endl;
     return;
-  } else  std::cout << "   --- File found ---   " << std::endl;
+  } else std::cout << "   --- File found ---   " << std::endl;
+    
+  TFile *tfile = new TFile(help.c_str());
 
-  // canvas
+    // canvas
   TCanvas *canv;
   std::string canv_name = "m26effi_";
   canv_name += std::to_string(runnumber);
@@ -415,14 +417,12 @@ void fitter(Int_t runnumber, Double_t ebeam)
   filehelper(help, runnumber);
 
   std::cout << "Reading file: " << help << std::endl;
-  TFile *tfile = new TFile(help.c_str());
-  if(tfile == NULL) {
-    std::cout << "   --- File does not exist, return! ---   " << std::endl;
+  if(gSystem->AccessPathName(help.c_str(),kFileExists)){
+    std::cout << "   --- File does not exist, skipping run! ---   " << std::endl;
     return;
-  } else{
-    std::cout << "   --- File found ---   " << std::endl;
-
-  }
+  } else std::cout << "   --- File found ---   " << std::endl;
+  
+  TFile *tfile = new TFile(help.c_str());
 
   // canvas
   TCanvas *canv;
@@ -1141,6 +1141,10 @@ int main(int argc, char *argv[0])
     runmode = atoi(argv[1]);
     inputDir20 = argv[2];
   }
+  else if( argc == 2 ) {
+    runmode = atoi(argv[1]);
+    std::cout << "Using default for input directory." << std::endl;
+  }
   else if( argc == 1 ) {
     std::cout << "Using default arguments." << std::endl;
   }
@@ -1158,7 +1162,14 @@ int main(int argc, char *argv[0])
   _outputFile = new TFile("../bin/output.root", "RECREATE");
   _outputFile->cd();
 
-
+  //check if runmode is ok
+  bool checkRM = false;
+  if(runmode == 0 || runmode == 2 || runmode == 9 || runmode == 11 || runmode == 111 || runmode == 16 || runmode == 17 || runmode == 18 || runmode == 19 || runmode == 20)
+    checkRM = true;
+  if(!checkRM) {
+    std::cout << "\n   -> Run mode not found. Exiting. " << std::endl;
+    return 1;
+  }
 
 
   // Initial telescope constructor name, AnaTel_wide.geom for 150mm, AnaTel_narrow.geom for 20mm data
@@ -1233,18 +1244,6 @@ int main(int argc, char *argv[0])
   }
 
 
-
-  // Open config file
-  //std::string s_config = "../conf/config.txt";
-  //ifstream conf(s_config.c_str());
-  //if(!conf)
-  //{
-  //  std::cout << "../conf/config.txt file missing!" << std::endl;
-  //  return 1;
-  //} else
-  //{
-  //  conf >> runmode;
-  //}
 
   if (runmode == 20)
   {
