@@ -5,7 +5,7 @@
  *                                                                                        *
  ******************************************************************************************/
 
-
+	
 #include "AnaTel.h"
 #include "TF1.h"
 #include <iostream>
@@ -19,6 +19,7 @@
 #include <cmath>
 #include <iomanip>
 #include <stdio.h>
+#include <stdlib.h>
 #include <utility>
 #include <map>
 #include <sstream>
@@ -55,8 +56,9 @@
 #include "TColor.h"
 #include "TLegendEntry.h"
 
-std::string inputDir20;
-std::string inputFile;
+std::string inputDir20 = "../../analysis-20mm/output/histograms/";
+int runmode = 0;
+std::string inputFile = "run00";
 TFile* _outputFile;
 ofstream pulls20;
 ofstream pulls150;
@@ -1112,8 +1114,19 @@ void FillGraph(){
 }
 
 // Let's go!
-int main()
+int main(int argc, char *argv[0])
 {
+  std::cout << "Usage: " << argv[0] << "<runmode> <data input path>" << std::endl;
+  std::cout << "0 for all" << std::endl;
+  std::cout << "2 for threshold" << std::endl;
+  std::cout << "9 for global_thres=6" << std::endl;
+  std::cout << "11 for read pulls and write to file" << std::endl;
+  std::cout << "111 mean number of fired pixels" << std::endl;
+  std::cout << "16 Plot predicted and measured residual width versus z position (smiley)" << std::endl;
+  std::cout << "17 read effi plots and create plots" << std::endl;
+  std::cout << "18 make reso plots a.f.o. dz_DUT" << std::endl;
+  std::cout << "19 make reso plots a.f.o. eps_DUT" << std::endl;
+  std::cout << "20 DIY tscope\n" << std::endl;
 
   //gROOT->SetBatch();
   //gSystem->Load("libMinuit");
@@ -1121,11 +1134,32 @@ int main()
   //gSystem->AddIncludePath("include/");
   gROOT->SetStyle("Plain");
 
-  inputDir20  = "../../analysis-20mm/output/histograms/";
-  inputFile = "run00";
+
+  // arguments
+
+  if( argc == 3 ) {
+    runmode = atoi(argv[1]);
+    inputDir20 = argv[2];
+  }
+  else if( argc == 1 ) {
+    std::cout << "Using default arguments." << std::endl;
+  }
+  else if( argc > 3 ) {
+    std::cout << "Too many arguments supplied." << std::endl;
+    return 1;
+  }
+  else if( argc < 3 ) {
+    std::cout << "Too less arguments supplied." << std::endl;
+    return 1;
+  }
+  std::cout << "Run mode is " << runmode << std::endl;
+  std::cout << "Data input path is " << inputDir20 << std::endl;
 
   _outputFile = new TFile("../bin/output.root", "RECREATE");
   _outputFile->cd();
+
+
+
 
   // Initial telescope constructor name, AnaTel_wide.geom for 150mm, AnaTel_narrow.geom for 20mm data
   //char telescopebuild[50];
@@ -1198,22 +1232,19 @@ int main()
 
   }
 
-  // Runmode: 0 for all, 1 for clustersize, 2 for threshold, 3 for threshold and clustersize, 4 for noise, 5 for E plot, 9 for testing...
-  // 6 for clustersie only, 7 for pointing, 10 for testing of GBLwidths, 11 optimising thickness and Highlanf factor
 
-  Int_t runmode;
 
   // Open config file
-  std::string s_config = "../conf/config.txt";
-  ifstream conf(s_config.c_str());
-  if(!conf)
-  {
-    std::cout << "../conf/config.txt file missing!" << std::endl;
-    return 1;
-  } else
-  {
-    conf >> runmode;
-  }
+  //std::string s_config = "../conf/config.txt";
+  //ifstream conf(s_config.c_str());
+  //if(!conf)
+  //{
+  //  std::cout << "../conf/config.txt file missing!" << std::endl;
+  //  return 1;
+  //} else
+  //{
+  //  conf >> runmode;
+  //}
 
   if (runmode == 20)
   {
